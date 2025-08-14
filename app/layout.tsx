@@ -13,6 +13,14 @@ export default function RootLayout({
 }) {
   return (
     <html lang="ko">
+      <head>
+        <link
+          rel="stylesheet"
+          as="style"
+          crossOrigin=""
+          href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.min.css"
+        />
+      </head>
       <body className="min-h-screen bg-background font-sans antialiased">
         {children}
       </body>
