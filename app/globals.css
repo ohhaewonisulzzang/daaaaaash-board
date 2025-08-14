@@ -25,3 +25,168 @@ body {
     text-wrap: balance;
   }
 }
+
+/* 로그인 페이지용 애니메이션 */
+@keyframes blob {
+  0% {
+    transform: translate(0px, 0px) scale(1);
+  }
+  33% {
+    transform: translate(30px, -50px) scale(1.1);
+  }
+  66% {
+    transform: translate(-20px, 20px) scale(0.9);
+  }
+  100% {
+    transform: translate(0px, 0px) scale(1);
+  }
+}
+
+.animate-blob {
+  animation: blob 7s infinite;
+}
+
+.animation-delay-2000 {
+  animation-delay: 2s;
+}
+
+.animation-delay-4000 {
+  animation-delay: 4s;
+}
+
+/* RGB 네온 효과 애니메이션 */
+@keyframes neon-glow {
+  0% {
+    box-shadow: 
+      0 0 20px rgba(255, 0, 150, 0.4),
+      0 0 40px rgba(255, 0, 150, 0.3),
+      0 0 60px rgba(255, 0, 150, 0.2),
+      0 0 80px rgba(255, 0, 150, 0.1);
+  }
+  25% {
+    box-shadow: 
+      0 0 20px rgba(0, 255, 150, 0.4),
+      0 0 40px rgba(0, 255, 150, 0.3),
+      0 0 60px rgba(0, 255, 150, 0.2),
+      0 0 80px rgba(0, 255, 150, 0.1);
+  }
+  50% {
+    box-shadow: 
+      0 0 20px rgba(150, 0, 255, 0.4),
+      0 0 40px rgba(150, 0, 255, 0.3),
+      0 0 60px rgba(150, 0, 255, 0.2),
+      0 0 80px rgba(150, 0, 255, 0.1);
+  }
+  75% {
+    box-shadow: 
+      0 0 20px rgba(255, 150, 0, 0.4),
+      0 0 40px rgba(255, 150, 0, 0.3),
+      0 0 60px rgba(255, 150, 0, 0.2),
+      0 0 80px rgba(255, 150, 0, 0.1);
+  }
+  100% {
+    box-shadow: 
+      0 0 20px rgba(255, 0, 150, 0.4),
+      0 0 40px rgba(255, 0, 150, 0.3),
+      0 0 60px rgba(255, 0, 150, 0.2),
+      0 0 80px rgba(255, 0, 150, 0.1);
+  }
+}
+
+@keyframes neon-border {
+  0% {
+    border-color: rgba(255, 0, 150, 0.6);
+    box-shadow: 
+      inset 0 0 20px rgba(255, 0, 150, 0.2),
+      0 0 20px rgba(255, 0, 150, 0.4),
+      0 0 40px rgba(255, 0, 150, 0.3),
+      0 0 60px rgba(255, 0, 150, 0.2);
+  }
+  25% {
+    border-color: rgba(0, 255, 150, 0.6);
+    box-shadow: 
+      inset 0 0 20px rgba(0, 255, 150, 0.2),
+      0 0 20px rgba(0, 255, 150, 0.4),
+      0 0 40px rgba(0, 255, 150, 0.3),
+      0 0 60px rgba(0, 255, 150, 0.2);
+  }
+  50% {
+    border-color: rgba(150, 0, 255, 0.6);
+    box-shadow: 
+      inset 0 0 20px rgba(150, 0, 255, 0.2),
+      0 0 20px rgba(150, 0, 255, 0.4),
+      0 0 40px rgba(150, 0, 255, 0.3),
+      0 0 60px rgba(150, 0, 255, 0.2);
+  }
+  75% {
+    border-color: rgba(255, 150, 0, 0.6);
+    box-shadow: 
+      inset 0 0 20px rgba(255, 150, 0, 0.2),
+      0 0 20px rgba(255, 150, 0, 0.4),
+      0 0 40px rgba(255, 150, 0, 0.3),
+      0 0 60px rgba(255, 150, 0, 0.2);
+  }
+  100% {
+    border-color: rgba(255, 0, 150, 0.6);
+    box-shadow: 
+      inset 0 0 20px rgba(255, 0, 150, 0.2),
+      0 0 20px rgba(255, 0, 150, 0.4),
+      0 0 40px rgba(255, 0, 150, 0.3),
+      0 0 60px rgba(255, 0, 150, 0.2);
+  }
+}
+
+.neon-glow {
+  animation: neon-glow 4s ease-in-out infinite;
+}
+
+.neon-border {
+  animation: neon-border 4s ease-in-out infinite;
+  border: 2px solid rgba(255, 0, 150, 0.6);
+}
+
+/* 다크모드에서만 네온 효과 적용 */
+.dark .login-card-neon {
+  position: relative;
+  animation: neon-border 4s ease-in-out infinite;
+  border: 2px solid rgba(255, 0, 150, 0.6);
+  overflow: hidden;
+}
+
+.dark .login-card-neon::before {
+  content: '';
+  position: absolute;
+  top: -6px;
+  left: -6px;
+  right: -6px;
+  bottom: -6px;
+  background: linear-gradient(45deg, 
+    rgba(255, 0, 150, 0.4), 
+    rgba(0, 255, 150, 0.4), 
+    rgba(150, 0, 255, 0.4), 
+    rgba(255, 150, 0, 0.4)
+  );
+  border-radius: 20px;
+  z-index: -1;
+  animation: neon-glow 4s ease-in-out infinite;
+  filter: blur(15px);
+}
+
+.dark .login-card-neon::after {
+  content: '';
+  position: absolute;
+  top: -2px;
+  left: -2px;
+  right: -2px;
+  bottom: -2px;
+  background: linear-gradient(45deg, 
+    rgba(255, 0, 150, 0.2), 
+    rgba(0, 255, 150, 0.2), 
+    rgba(150, 0, 255, 0.2), 
+    rgba(255, 150, 0, 0.2)
+  );
+  border-radius: 18px;
+  z-index: -1;
+  animation: neon-glow 4s ease-in-out infinite reverse;
+  filter: blur(5px);
+}
