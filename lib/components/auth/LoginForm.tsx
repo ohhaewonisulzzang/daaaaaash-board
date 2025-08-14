@@ -78,13 +78,13 @@ export default function LoginForm({ onLogin, isLoading }: ILoginFormProps) {
     setError('')
 
     if (!email || !password) {
-      setError('아이디와 비밀번호를 입력해주세요.')
+      setError('이메일과 비밀번호를 입력해주세요.')
       return
     }
 
     const success = await onLogin(email, password)
     if (!success) {
-      setError('로그인에 실패했습니다. 아이디와 비밀번호를 확인해주세요.')
+      setError('로그인에 실패했습니다. 이메일과 비밀번호를 확인해주세요.')
     }
   }
 
@@ -119,17 +119,17 @@ export default function LoginForm({ onLogin, isLoading }: ILoginFormProps) {
           <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6">
             <div className="space-y-2">
               <label htmlFor="email" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                아이디
+                이메일
               </label>
               <div className="relative">
                 <UserIcon />
                 <Input
                   id="email"
-                  type="text"
+                  type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   onKeyPress={handleEmailKeyPress}
-                  placeholder="admin"
+                  placeholder="admin@example.com"
                   className="pl-10 h-10 sm:h-12 bg-white/50 dark:bg-slate-800/50 border-gray-200 dark:border-slate-600 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
                   disabled={isLoading}
                   autoComplete="username"
@@ -203,7 +203,7 @@ export default function LoginForm({ onLogin, isLoading }: ILoginFormProps) {
               </h3>
             </div>
             <p className="text-xs text-blue-600 dark:text-blue-400 ml-6">
-              아이디: <span className="font-mono font-semibold">admin</span><br />
+              이메일: <span className="font-mono font-semibold">admin@example.com</span><br />
               비밀번호: <span className="font-mono font-semibold">q1w2e3r4</span>
             </p>
           </div>

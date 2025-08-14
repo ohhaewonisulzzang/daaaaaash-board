@@ -1,4 +1,5 @@
 // 공통 타입 정의
+import { User } from '@supabase/supabase-js'
 
 export interface IUser {
   id: string
@@ -7,6 +8,23 @@ export interface IUser {
   avatarUrl?: string
   createdAt: string
   updatedAt: string
+}
+
+// 인증 관련 타입
+export interface IAuthUser extends User {
+  fullName?: string
+  avatarUrl?: string
+}
+
+export interface ILoginCredentials {
+  email: string
+  password: string
+}
+
+export interface ILoginResponse {
+  success: boolean
+  user?: IAuthUser
+  error?: string
 }
 
 export interface IPost {

@@ -1,79 +1,70 @@
 'use client'
 
-import { useState, useEffect, createContext, useContext } from 'react'
-
-// 테스트용 사용자 정보 인터페이스
-interface ITestUser {
-  id: string
-  email: string
-  name: string
-}
+import { useState, useEffect } from 'react'
+import { User } from '@supabase/supabase-js'
+import { supabase } from '@/lib/supabase/client'
 
 interface IAuthContext {
-  user: ITestUser | null
+  user: User | null
   isLoading: boolean
   login: (email: string, password: string) => Promise<boolean>
-  logout: () => void
+  logout: () => Promise<void>
   isAuthenticated: boolean
 }
 
-// 테스트 계정 정보
-const TEST_CREDENTIALS = {
-  email: 'admin',
-  password: 'q1w2e3r4'
-}
-
-const TEST_USER: ITestUser = {
-  id: 'test-user-1',
-  email: 'admin',
-  name: '관리자'
-}
-
-// AuthContext 생성
-const AuthContext = createContext<IAuthContext | undefined>(undefined)
-
-// useAuth 훅
-export function useAuth() {
-  const [user, setUser] = useState<ITestUser | null>(null)
+export function useAuth(): IAuthContext {
+  const [user, setUser] = useState<User | null>(null)
   const [isLoading, setIsLoading] = useState(true)
-  const [isAuthenticated, setIsAuthenticated] = useState(false)
 
   useEffect(() => {
-    // 페이지 로드 시 저장된 인증 상태 확인
-    const savedUser = localStorage.getItem('test-user')
-    if (savedUser) {
-      const parsedUser = JSON.parse(savedUser)
-      setUser(parsedUser)
-      setIsAuthenticated(true)
-    } else {
-      setIsAuthenticated(false)
+    // 현재 세션 확인
+    const getInitialSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession()
+      setUser(session?.user ?? null)
+      setIsLoading(false)
     }
-    setIsLoading(false)
+
+    getInitialSession()
+
+    // 인증 상태 변경 리스너
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (_event, session) => {
+        setUser(session?.user ?? null)
+        setIsLoading(false)
+      }
+    )
+
+    return () => subscription.unsubscribe()
   }, [])
 
   const login = async (email: string, password: string): Promise<boolean> => {
-    setIsLoading(true)
-    
-    // 간단한 딜레이로 실제 로그인 과정을 시뮬레이션
-    await new Promise(resolve => setTimeout(resolve, 1000))
-    
-    // 테스트 계정 확인
-    if (email === TEST_CREDENTIALS.email && password === TEST_CREDENTIALS.password) {
-      setUser(TEST_USER)
-      setIsAuthenticated(true)
-      localStorage.setItem('test-user', JSON.stringify(TEST_USER))
-      setIsLoading(false)
-      return true
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      })
+
+      if (error) {
+        console.error('Login error:', error)
+        return false
+      }
+
+      return !!data.user
+    } catch (error) {
+      console.error('Login error:', error)
+      return false
     }
-    
-    setIsLoading(false)
-    return false
   }
 
-  const logout = () => {
-    setUser(null)
-    setIsAuthenticated(false)
-    localStorage.removeItem('test-user')
+  const logout = async (): Promise<void> => {
+    try {
+      const { error } = await supabase.auth.signOut()
+      if (error) {
+        console.error('Logout error:', error)
+      }
+    } catch (error) {
+      console.error('Logout error:', error)
+    }
   }
 
   return {
@@ -81,6 +72,6 @@ export function useAuth() {
     isLoading,
     login,
     logout,
-    isAuthenticated
+    isAuthenticated: !!user
   }
 }
