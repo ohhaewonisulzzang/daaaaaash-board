@@ -39,6 +39,9 @@ export async function POST(request: NextRequest) {
       password,
       options: {
         emailRedirectTo: `${request.nextUrl.origin}/auth/callback`,
+        data: {
+          email_confirm: false  // 이메일 확인 비활성화
+        }
       },
     })
 
@@ -63,8 +66,8 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: true,
       user: data.user,
-      message: '회원가입이 완료되었습니다. 이메일을 확인해주세요.',
-      needsVerification: !data.user?.email_confirmed_at,
+      message: '회원가입이 완료되었습니다.',
+      needsVerification: false,
     })
   } catch (error) {
     console.error('Server error:', error)

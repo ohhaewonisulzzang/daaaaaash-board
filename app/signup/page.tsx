@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/lib/components/ui/button'
 import { Input } from '@/lib/components/ui/input'
@@ -64,6 +64,28 @@ const LoadingSpinner = () => (
   </svg>
 )
 
+const ShieldIcon = () => (
+  <svg className="w-5 h-5 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+  </svg>
+)
+
+const RefreshIcon = () => (
+  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+  </svg>
+)
+
+// 보안문자 생성 함수
+const generateCaptcha = () => {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
+  let result = ''
+  for (let i = 0; i < 5; i++) {
+    result += chars.charAt(Math.floor(Math.random() * chars.length))
+  }
+  return result
+}
+
 export default function SignupPage() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -72,22 +94,26 @@ export default function SignupPage() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState('')
-  const [step, setStep] = useState<'form' | 'verification' | 'success'>('form')
-  const [verificationCode, setVerificationCode] = useState('')
-  const [isCodeSending, setIsCodeSending] = useState(false)
-  const [isVerifying, setIsVerifying] = useState(false)
+  const [captcha, setCaptcha] = useState('')
+  const [captchaInput, setCaptchaInput] = useState('')
   
   const router = useRouter()
   const { toast } = useToast()
   const passwordRef = useRef<HTMLInputElement>(null)
   const confirmPasswordRef = useRef<HTMLInputElement>(null)
+  const captchaRef = useRef<HTMLInputElement>(null)
+
+  // 컴포넌트 마운트 시 보안문자 생성
+  useEffect(() => {
+    setCaptcha(generateCaptcha())
+  }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
 
     // 유효성 검사
-    if (!email || !password || !confirmPassword) {
+    if (!email || !password || !confirmPassword || !captchaInput) {
       setError('모든 필드를 입력해주세요.')
       return
     }
@@ -108,32 +134,45 @@ export default function SignupPage() {
       return
     }
 
+    // 보안문자 검증
+    if (captchaInput.toUpperCase() !== captcha.toUpperCase()) {
+      setError('보안문자가 일치하지 않습니다.')
+      refreshCaptcha()
+      return
+    }
+
     setIsLoading(true)
 
     try {
-      // 인증 코드 전송 요청
-      const response = await fetch('/api/auth/send-verification', {
+      // 바로 회원가입 진행
+      const response = await fetch('/api/auth/signup', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ email }),
+        body: JSON.stringify({ email, password }),
       })
 
       const data = await response.json()
 
       if (data.success) {
-        setStep('verification')
         toast({
-          title: '인증 코드 전송됨',
-          description: '이메일로 인증 코드를 보냈습니다.',
+          title: '회원가입 성공!',
+          description: '계정이 성공적으로 생성되었습니다.',
         })
+        
+        // 2초 후 로그인 페이지로 이동
+        setTimeout(() => {
+          router.push('/login')
+        }, 2000)
       } else {
-        setError(data.error || '인증 코드 전송에 실패했습니다.')
+        setError(data.error || '회원가입에 실패했습니다.')
+        refreshCaptcha()
       }
     } catch (err) {
-      console.error('Send verification error:', err)
-      setError('인증 코드 전송 처리 중 오류가 발생했습니다.')
+      console.error('Signup error:', err)
+      setError('회원가입 처리 중 오류가 발생했습니다.')
+      refreshCaptcha()
     } finally {
       setIsLoading(false)
     }
@@ -156,98 +195,22 @@ export default function SignupPage() {
   const handleConfirmPasswordKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
       e.preventDefault()
+      captchaRef.current?.focus()
+    }
+  }
+
+  const handleCaptchaKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      e.preventDefault()
       handleSubmit(e as any)
     }
   }
 
-  const handleCodeVerification = async () => {
-    if (!verificationCode || verificationCode.length !== 6) {
-      setError('6자리 인증 코드를 입력해주세요.')
-      return
-    }
-
-    setIsVerifying(true)
-    setError('')
-
-    try {
-      // 인증 코드 검증
-      const verifyResponse = await fetch('/api/auth/verify-code', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ email, code: verificationCode }),
-      })
-
-      const verifyData = await verifyResponse.json()
-
-      if (verifyData.success) {
-        // 인증 성공 후 실제 회원가입 진행
-        const signupResponse = await fetch('/api/auth/signup', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ email, password }),
-        })
-
-        const signupData = await signupResponse.json()
-
-        if (signupData.success) {
-          setStep('success')
-          toast({
-            title: '계정 만들기 성공!',
-            description: '이메일 인증이 완료되었습니다.',
-          })
-          
-          // 3초 후 로그인 페이지로 이동
-          setTimeout(() => {
-            router.push('/login')
-          }, 3000)
-        } else {
-          setError(signupData.error || '회원가입에 실패했습니다.')
-        }
-      } else {
-        setError(verifyData.error || '인증 코드가 올바르지 않습니다.')
-      }
-    } catch (err) {
-      console.error('Code verification error:', err)
-      setError('인증 코드 검증 처리 중 오류가 발생했습니다.')
-    } finally {
-      setIsVerifying(false)
-    }
+  const refreshCaptcha = () => {
+    setCaptcha(generateCaptcha())
+    setCaptchaInput('')
   }
 
-  const handleResendCode = async () => {
-    setIsCodeSending(true)
-    setError('')
-
-    try {
-      const response = await fetch('/api/auth/send-verification', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ email }),
-      })
-
-      const data = await response.json()
-
-      if (data.success) {
-        toast({
-          title: '인증 코드 재전송됨',
-          description: '새로운 인증 코드를 이메일로 보냈습니다.',
-        })
-      } else {
-        setError(data.error || '인증 코드 재전송에 실패했습니다.')
-      }
-    } catch (err) {
-      console.error('Resend code error:', err)
-      setError('인증 코드 재전송 처리 중 오류가 발생했습니다.')
-    } finally {
-      setIsCodeSending(false)
-    }
-  }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 dark:from-slate-900 dark:via-slate-800 dark:to-indigo-950 transition-all duration-500 p-4">
@@ -260,18 +223,15 @@ export default function SignupPage() {
 
       <div className="relative z-10 w-full max-w-md">
         <Card className="w-full p-8 backdrop-blur-lg bg-white/80 dark:bg-slate-900/90 border-white/20 dark:border-slate-700/50 shadow-2xl rounded-2xl">
-          
-          {step === 'form' && (
-            <>
-              <div className="text-center mb-8">
-                <DashboardIcon />
-                <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-2">
-                  계정 만들기
-                </h1>
-                <p className="text-gray-600 dark:text-gray-300 text-sm">
-                  새 계정을 만들어 대시보드를 사용하세요
-                </p>
-              </div>
+          <div className="text-center mb-8">
+            <DashboardIcon />
+            <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-2">
+              계정 만들기
+            </h1>
+            <p className="text-gray-600 dark:text-gray-300 text-sm">
+              새 계정을 만들어 대시보드를 사용하세요
+            </p>
+          </div>
 
               <form onSubmit={handleSubmit} className="space-y-6">
                 <div className="space-y-2">
@@ -352,6 +312,48 @@ export default function SignupPage() {
                   </div>
                 </div>
 
+                {/* 보안문자 필드 */}
+                <div className="space-y-2">
+                  <label htmlFor="captcha" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                    보안문자
+                  </label>
+                  <div className="flex space-x-3">
+                    <div className="flex-1 relative">
+                      <ShieldIcon />
+                      <Input
+                        ref={captchaRef}
+                        id="captcha"
+                        type="text"
+                        value={captchaInput}
+                        onChange={(e) => setCaptchaInput(e.target.value.toUpperCase())}
+                        onKeyPress={handleCaptchaKeyPress}
+                        placeholder="보안문자 입력"
+                        className="pl-10 h-12 uppercase"
+                        disabled={isLoading}
+                        required
+                        maxLength={5}
+                      />
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <div className="px-4 py-3 bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg text-lg font-bold text-gray-800 dark:text-gray-200 tracking-widest select-none">
+                        {captcha}
+                      </div>
+                      <Button
+                        type="button"
+                        onClick={refreshCaptcha}
+                        disabled={isLoading}
+                        className="px-3 py-3 bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-lg"
+                        title="보안문자 새로고침"
+                      >
+                        <RefreshIcon />
+                      </Button>
+                    </div>
+                  </div>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">
+                    위에 표시된 문자를 정확히 입력해주세요
+                  </p>
+                </div>
+
                 {error && (
                   <div className="flex items-center p-3 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800">
                     <svg className="w-5 h-5 text-red-500 mr-2 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -391,121 +393,6 @@ export default function SignupPage() {
                   </Link>
                 </p>
               </div>
-            </>
-          )}
-
-          {step === 'verification' && (
-            <div className="text-center">
-              <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-blue-100 dark:bg-blue-900/20 mb-6">
-                <svg className="h-8 w-8 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                </svg>
-              </div>
-              
-              <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4">
-                이메일 인증 코드 입력
-              </h2>
-              
-              <p className="text-gray-600 dark:text-gray-300 mb-6">
-                <strong>{email}</strong>로 6자리 인증 코드를 보냈습니다.<br />
-                이메일을 확인하고 인증 코드를 입력해주세요.
-              </p>
-
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <label htmlFor="verification-code" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                    인증 코드 (6자리)
-                  </label>
-                  <Input
-                    id="verification-code"
-                    type="text"
-                    value={verificationCode}
-                    onChange={(e) => {
-                      const value = e.target.value.replace(/\D/g, '').slice(0, 6)
-                      setVerificationCode(value)
-                    }}
-                    placeholder="123456"
-                    className="h-12 text-center text-lg font-mono tracking-widest"
-                    disabled={isVerifying}
-                    maxLength={6}
-                    autoComplete="one-time-code"
-                  />
-                </div>
-
-                {error && (
-                  <div className="flex items-center p-3 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800">
-                    <svg className="w-5 h-5 text-red-500 mr-2 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.732-.833-2.5 0L4.308 16.5c-.77.833.192 2.5 1.732 2.5z" />
-                    </svg>
-                    <span className="text-red-600 dark:text-red-400 text-sm">{error}</span>
-                  </div>
-                )}
-
-                <Button
-                  onClick={handleCodeVerification}
-                  disabled={isVerifying || verificationCode.length !== 6}
-                  className="w-full h-12 bg-gradient-to-r from-green-500 to-blue-600 hover:from-green-600 hover:to-blue-700 text-white font-medium rounded-lg disabled:opacity-50"
-                >
-                  {isVerifying ? (
-                    <>
-                      <LoadingSpinner />
-                      인증 중...
-                    </>
-                  ) : (
-                    '인증 코드 확인'
-                  )}
-                </Button>
-                
-                <div className="flex space-x-2">
-                  <Button
-                    onClick={handleResendCode}
-                    disabled={isCodeSending || isVerifying}
-                    className="flex-1 h-12 bg-gray-200 hover:bg-gray-300 text-gray-800 font-medium rounded-lg disabled:opacity-50"
-                  >
-                    {isCodeSending ? (
-                      <>
-                        <LoadingSpinner />
-                        전송 중...
-                      </>
-                    ) : (
-                      '코드 재전송'
-                    )}
-                  </Button>
-                  
-                  <Button
-                    onClick={() => router.push('/login')}
-                    className="flex-1 h-12 bg-gray-200 hover:bg-gray-300 text-gray-800 font-medium rounded-lg"
-                  >
-                    나중에 하기
-                  </Button>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {step === 'success' && (
-            <div className="text-center">
-              <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-green-100 dark:bg-green-900/20 mb-6">
-                <svg className="h-8 w-8 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                </svg>
-              </div>
-              
-              <h2 className="text-xl font-bold text-green-600 dark:text-green-400 mb-4">
-                계정 만들기 성공! 🎉
-              </h2>
-              
-              <p className="text-gray-600 dark:text-gray-300 mb-6">
-                회원가입이 완료되었습니다.<br />
-                잠시 후 로그인 페이지로 이동합니다.
-              </p>
-
-              <div className="flex items-center justify-center">
-                <LoadingSpinner />
-                <span className="text-gray-600 dark:text-gray-300">로그인 페이지로 이동 중...</span>
-              </div>
-            </div>
-          )}
         </Card>
       </div>
     </div>
