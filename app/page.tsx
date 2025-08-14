@@ -1,30 +1,45 @@
-import Link from 'next/link'
+'use client'
+
+import { useEffect, useRef } from 'react'
+import { useRouter } from 'next/navigation'
+import { ThemeToggle, ThemeProvider, Spinner } from '@/lib/components/ui'
+import { LoginForm } from '@/lib/components/auth'
+import { useAuth } from '@/lib/hooks'
 
 export default function HomePage() {
+  const { user, isLoading, login, isAuthenticated } = useAuth()
+  const router = useRouter()
+  const hasRedirectedRef = useRef(false)
+
+  // 로그인된 사용자는 대시보드로 리다이렉트 - 로딩 완료 후에만 리다이렉트
+  useEffect(() => {
+    if (!isLoading && isAuthenticated && !hasRedirectedRef.current) {
+      hasRedirectedRef.current = true
+      router.replace('/dashboard')
+    }
+  }, [isAuthenticated, isLoading, router])
+
   return (
-    <main className="container mx-auto px-4 py-8">
-      <div className="text-center">
-        <h1 className="text-4xl font-bold text-gray-900 mb-4">
-          대시보드에 오신 것을 환영합니다
-        </h1>
-        <p className="text-lg text-gray-600 mb-8">
-          Next.js, TypeScript, Tailwind CSS, Supabase로 구축된 현대적인 대시보드
-        </p>
-        <div className="space-x-4">
-          <Link 
-            href="/dashboard"
-            className="inline-block bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors"
-          >
-            대시보드 보기
-          </Link>
-          <Link 
-            href="/profile"
-            className="inline-block bg-gray-600 text-white px-6 py-3 rounded-lg hover:bg-gray-700 transition-colors"
-          >
-            프로필
-          </Link>
-        </div>
+    <ThemeProvider>
+      {/* 테마 토글 버튼 */}
+      <div className="fixed top-6 right-6 z-50">
+        <ThemeToggle />
       </div>
-    </main>
+
+      {isLoading ? (
+        // 로딩 중일 때
+        <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary-bg via-gray-50 to-blue-50 dark:from-dark-bg dark:via-dark-bg-secondary dark:to-indigo-900 transition-all duration-500">
+          <div className="text-center">
+            <Spinner size="lg" />
+            <p className="mt-4 text-primary-text-secondary dark:text-dark-text-secondary">
+              로딩 중...
+            </p>
+          </div>
+        </div>
+      ) : !isAuthenticated ? (
+        // 로그인되지 않았을 때 로그인 폼 표시
+        <LoginForm onLogin={login} isLoading={isLoading} />
+      ) : null}
+    </ThemeProvider>
   )
 }
