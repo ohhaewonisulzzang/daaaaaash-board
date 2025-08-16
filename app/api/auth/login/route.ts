@@ -1,86 +1,49 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import {
+  validateAuthInput,
+  authenticateUser,
+  mapAuthError,
+  createAuthResponse,
+  type ILoginCredentials
+} from '@/lib/auth/utils'
 
 export async function POST(request: NextRequest) {
   try {
-    const { email, password } = await request.json()
+    const { email, password }: ILoginCredentials = await request.json()
 
-    if (!email || !password) {
+    // 입력 검증
+    const validationErrors = validateAuthInput(email, password)
+    if (validationErrors.length > 0) {
+      const errorMessage = validationErrors.map(err => err.message).join(' ')
       return NextResponse.json(
-        { error: '이메일과 비밀번호를 입력해주세요.' },
+        createAuthResponse({ success: false, error: errorMessage }),
         { status: 400 }
       )
     }
 
-    const supabase = await createClient()
+    // 로그인 처리
+    const { user, session, profile } = await authenticateUser({ email, password })
 
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    })
-
-    if (error) {
-      console.error('Login error:', error)
-      
-      let errorMessage = '로그인에 실패했습니다.'
-      
-      if (error.message === 'Invalid login credentials') {
-        errorMessage = '이메일 또는 비밀번호가 올바르지 않습니다.'
-      } else if (error.message.includes('Email not confirmed')) {
-        errorMessage = '이메일 인증이 필요합니다.'
-      } else if (error.message.includes('Too many requests')) {
-        errorMessage = '너무 많은 로그인 시도입니다. 잠시 후 다시 시도해주세요.'
-      }
-
-      return NextResponse.json(
-        { error: errorMessage },
-        { status: 401 }
-      )
-    }
-
-    if (!data.user) {
-      return NextResponse.json(
-        { error: '사용자 정보를 가져올 수 없습니다.' },
-        { status: 400 }
-      )
-    }
-
-    // 사용자 프로필 정보 가져오기
-    let profile = null
-    try {
-      const { data: profileData, error: profileError } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', data.user.id)
-        .single()
-        
-      if (!profileError && profileData) {
-        profile = profileData
-      }
-    } catch (profileFetchError) {
-      console.log('Profile fetch failed:', profileFetchError)
-    }
-
-    return NextResponse.json({
-      success: true,
-      user: {
-        id: data.user.id,
-        email: data.user.email,
-        user_metadata: data.user.user_metadata,
-        profile: profile
-      },
-      session: {
-        access_token: data.session?.access_token,
-        refresh_token: data.session?.refresh_token,
-        expires_at: data.session?.expires_at,
-      }
-    })
+    return NextResponse.json(
+      createAuthResponse({
+        success: true,
+        user,
+        session,
+        profile,
+        message: '로그인이 완료되었습니다.'
+      })
+    )
 
   } catch (error) {
     console.error('Login API error:', error)
+    
+    const errorMessage = mapAuthError(error)
+    const isAuthError = error && typeof error === 'object' && 'message' in error
+    const statusCode = isAuthError ? 401 : 500
+
     return NextResponse.json(
-      { error: '서버 오류가 발생했습니다.' },
-      { status: 500 }
+      createAuthResponse({ success: false, error: errorMessage }),
+      { status: statusCode }
     )
   }
 }

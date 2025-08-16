@@ -146,17 +146,18 @@ export default function LoginForm({ onLogin, isLoading }: ILoginFormProps) {
     setError('')
     
     try {
-      const response = await fetch(`/api/auth/${provider}`, {
+      const response = await fetch('/api/auth/social', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
+        body: JSON.stringify({ provider }),
       })
 
       const data = await response.json()
 
-      if (data.success && data.url) {
-        window.location.href = data.url
+      if (data.success && data.redirectUrl) {
+        window.location.href = data.redirectUrl
       } else {
         setError(data.error || `${provider} 로그인에 실패했습니다.`)
       }
