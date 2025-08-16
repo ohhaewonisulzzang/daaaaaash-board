@@ -59,3 +59,120 @@ export interface IApiResponse<T> {
   error?: string
   message?: string
 }
+
+// 대시보드 관련 타입
+export interface IDashboard {
+  id: string
+  user_id: string
+  name: string
+  background_type: 'color' | 'gradient' | 'image'
+  background_value: string
+  layout_settings: ILayoutSettings
+  created_at: string
+  updated_at: string
+}
+
+export interface ILayoutSettings {
+  gridCols: number
+  gridRows: number | 'auto'
+  gap: number
+}
+
+// 위젯 관련 타입
+export interface IWidget {
+  id: string
+  dashboard_id: string
+  type: 'link' | 'checklist' | 'clock' | 'weather' | 'memo' | 'search'
+  position_x: number
+  position_y: number
+  width: number
+  height: number
+  settings: IWidgetSettings
+  created_at: string
+  updated_at: string
+}
+
+export type IWidgetSettings = 
+  | ILinkSettings 
+  | IChecklistSettings 
+  | IClockSettings 
+  | IWeatherSettings 
+  | IMemoSettings 
+  | ISearchSettings
+
+export interface ILinkSettings {
+  url: string
+  title: string
+  icon?: string
+  description?: string
+}
+
+export interface IChecklistSettings {
+  title: string
+  items: IChecklistItem[]
+}
+
+export interface IChecklistItem {
+  id: string
+  text: string
+  completed: boolean
+  created_at?: string
+}
+
+export interface IClockSettings {
+  timezone?: string
+  format?: '12h' | '24h'
+  showDate?: boolean
+  showSeconds?: boolean
+}
+
+export interface IWeatherSettings {
+  city: string
+  country?: string
+  unit: 'metric' | 'imperial' | 'kelvin'
+  showForecast?: boolean
+}
+
+export interface IMemoSettings {
+  title: string
+  content: string
+  color?: string
+}
+
+export interface ISearchSettings {
+  engines: ISearchEngine[]
+  defaultEngine: string
+  placeholder?: string
+}
+
+export interface ISearchEngine {
+  id: string
+  name: string
+  url: string
+  icon?: string
+}
+
+// 배경 관련 타입
+export interface IBackgroundOption {
+  type: 'color' | 'gradient' | 'image'
+  value: string
+  preview?: string
+  name?: string
+}
+
+// 테마 관련 타입
+export interface ITheme {
+  id: string
+  name: string
+  isDark: boolean
+  colors: {
+    primary: string
+    secondary: string
+    background: string
+    surface: string
+    text: string
+    textSecondary: string
+    border: string
+    accent: string
+  }
+}

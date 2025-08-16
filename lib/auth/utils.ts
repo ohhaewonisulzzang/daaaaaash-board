@@ -116,6 +116,35 @@ export async function fetchUserProfile(userId: string): Promise<IUserProfile | n
   }
 }
 
+// 사용자 프로필 업데이트
+export async function updateUserProfile(
+  userId: string, 
+  updates: { full_name?: string; avatar_url?: string }
+): Promise<IUserProfile> {
+  try {
+    const supabase = await createClient()
+    
+    const { data, error } = await supabase
+      .from('profiles')
+      .update({
+        ...updates,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', userId)
+      .select('id, email, full_name, created_at, updated_at')
+      .single()
+
+    if (error || !data) {
+      throw new Error(`프로필 업데이트 실패: ${error?.message}`)
+    }
+
+    return data as IUserProfile
+  } catch (error) {
+    console.error('Profile update error:', error)
+    throw error
+  }
+}
+
 // 관리자 권한으로 사용자 생성
 export async function createUserWithAdmin(credentials: ISignupCredentials): Promise<{
   user: any
