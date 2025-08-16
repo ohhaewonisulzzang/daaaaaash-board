@@ -45,12 +45,29 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // 사용자 프로필 정보 가져오기
+    let profile = null
+    try {
+      const { data: profileData, error: profileError } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', data.user.id)
+        .single()
+        
+      if (!profileError && profileData) {
+        profile = profileData
+      }
+    } catch (profileFetchError) {
+      console.log('Profile fetch failed:', profileFetchError)
+    }
+
     return NextResponse.json({
       success: true,
       user: {
         id: data.user.id,
         email: data.user.email,
         user_metadata: data.user.user_metadata,
+        profile: profile
       },
       session: {
         access_token: data.session?.access_token,
