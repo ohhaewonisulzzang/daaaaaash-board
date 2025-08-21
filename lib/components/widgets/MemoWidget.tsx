@@ -65,7 +65,7 @@ export default function MemoWidget({
 
   return (
     <Card 
-      className={`p-4 h-full relative ${isEditMode ? 'border-2 border-dashed border-blue-300' : ''}`}
+      className={`macos-widget p-4 h-full relative animate-macos-fade-in group ${isEditMode ? 'border-2 border-dashed border-blue-300 animate-macos-pulse' : ''}`}
       onMouseDown={(e) => {
         // 편집 모드에서 위젯 내부 클릭 시 드래그 이벤트 차단
         if (isEditMode) {
@@ -83,7 +83,7 @@ export default function MemoWidget({
                 value={tempTitle}
                 onChange={(e) => setTempTitle(e.target.value)}
                 onKeyDown={handleKeyDown}
-                className="text-sm font-semibold h-6 px-1"
+                className="macos-input text-sm font-semibold h-6 px-1"
                 placeholder="메모 제목"
                 autoFocus
               />
@@ -98,7 +98,7 @@ export default function MemoWidget({
                 <Button
                   size="sm"
                   onClick={handleSave}
-                  className="h-6 px-2"
+                  className="macos-button h-6 px-2"
                 >
                   <Save className="w-3 h-3" />
                 </Button>
@@ -106,7 +106,7 @@ export default function MemoWidget({
                   size="sm"
                   variant="outline"
                   onClick={handleCancel}
-                  className="h-6 px-2"
+                  className="macos-button-secondary h-6 px-2"
                 >
                   <X className="w-3 h-3" />
                 </Button>
@@ -116,7 +116,7 @@ export default function MemoWidget({
                 size="sm"
                 variant="ghost"
                 onClick={() => setIsEditing(true)}
-                className="h-6 px-2 opacity-0 group-hover:opacity-100 transition-opacity"
+                className="macos-button-secondary h-6 px-2 opacity-0 group-hover:opacity-100 transition-all hover:scale-105"
               >
                 <Edit3 className="w-3 h-3" />
               </Button>
@@ -132,7 +132,7 @@ export default function MemoWidget({
               onChange={(e) => setTempContent(e.target.value)}
               onKeyDown={handleKeyDown}
               placeholder="메모를 입력하세요... (Ctrl+Enter로 저장, Esc로 취소)"
-              className="w-full h-full p-2 text-sm border rounded resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="macos-input w-full h-full p-2 text-sm resize-none"
             />
           ) : (
             <div 
@@ -162,7 +162,7 @@ export default function MemoWidget({
         <Button
           variant="destructive"
           size="sm"
-          className="absolute top-2 right-2"
+          className="absolute top-2 right-2 macos-button text-red-500 hover:scale-110"
           onClick={onRemove}
         >
           ×

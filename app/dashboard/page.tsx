@@ -888,7 +888,7 @@ export default function DashboardPage() {
         return (
           <Card 
             key={widget.id}
-            className={`p-6 relative ${isEditMode ? 'border-2 border-dashed border-blue-300' : ''}`}
+            className={`macos-widget p-6 relative animate-macos-fade-in ${isEditMode ? 'border-2 border-dashed border-blue-300 animate-macos-pulse' : ''}`}
             onMouseDown={(e) => {
               // 편집 모드에서 위젯 내부 클릭 시 드래그 이벤트 차단
               if (isEditMode) {
@@ -932,7 +932,7 @@ export default function DashboardPage() {
         return (
           <Card 
             key={widget.id}
-            className={`p-6 relative dark-widget hover:scale-105 transition-all duration-200 ${isEditMode ? 'border-2 border-dashed border-blue-300' : ''}`}
+            className={`macos-widget p-6 relative animate-macos-fade-in ${isEditMode ? 'border-2 border-dashed border-blue-300 animate-macos-pulse' : ''}`}
             onMouseDown={(e) => {
               // 편집 모드에서 위젯 내부 클릭 시 드래그 이벤트 차단
               if (isEditMode) {
@@ -999,7 +999,7 @@ export default function DashboardPage() {
         return (
           <Card 
             key={widget.id}
-            className={`p-6 relative ${isEditMode ? 'border-2 border-dashed border-blue-300' : ''}`}
+            className={`macos-widget p-6 relative animate-macos-fade-in ${isEditMode ? 'border-2 border-dashed border-blue-300 animate-macos-pulse' : ''}`}
             onMouseDown={(e) => {
               // 편집 모드에서 위젯 내부 클릭 시 드래그 이벤트 차단
               if (isEditMode) {
@@ -1236,10 +1236,10 @@ export default function DashboardPage() {
           )}
 
           <div className="flex justify-end space-x-2 pt-4">
-            <Button variant="outline" onClick={() => setIsAddWidgetModalOpen(false)}>
+            <Button variant="outline" onClick={() => setIsAddWidgetModalOpen(false)} className="macos-button-secondary">
               취소
             </Button>
-            <Button onClick={addWidget}>
+            <Button onClick={addWidget} className="macos-button">
               추가
             </Button>
           </div>
@@ -1366,15 +1366,15 @@ export default function DashboardPage() {
 
   return (
     <div className="h-screen overflow-hidden" style={backgroundStyle}>
-      {/* 상단 네비게이션 */}
-      <Navbar className="border-b bg-white/95 dark:bg-gray-900/95 backdrop-blur-md border-gray-200 dark:border-gray-700">
+      {/* macOS 스타일 상단 네비게이션 */}
+      <Navbar className="glass-effect border-b border-white/20 dark:border-gray-800/40">
         <div className="flex items-center justify-between w-full px-4">
           <div className="flex items-center space-x-2 sm:space-x-4">
             <Button
               variant="ghost"
               size="sm"
               onClick={toggleSidebar}
-              className="hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-200"
+              className="macos-button-secondary hover:scale-105 transition-transform"
             >
               <Grid className="w-5 h-5" />
             </Button>
@@ -1396,6 +1396,7 @@ export default function DashboardPage() {
               variant={isEditMode ? "default" : "outline"}
               size="sm"
               onClick={toggleEditMode}
+              className={`${isEditMode ? 'macos-button animate-macos-pulse' : 'macos-button-secondary'} hover:scale-105 transition-all`}
             >
               {isEditMode ? (
                 <>
@@ -1416,6 +1417,7 @@ export default function DashboardPage() {
               variant="ghost" 
               size="sm"
               onClick={() => setIsSettingsModalOpen(true)}
+              className="macos-button-secondary hover:scale-105 transition-transform"
             >
               <Settings className="w-5 h-5" />
             </Button>
@@ -1423,7 +1425,7 @@ export default function DashboardPage() {
               variant="outline"
               size="sm"
               onClick={handleLogout}
-              className="text-red-600 hover:text-red-700 hover:bg-red-50"
+              className="macos-button-secondary text-red-500 hover:text-red-600 hover:scale-105 transition-all border-red-200 dark:border-red-800"
             >
               <LogOut className="w-4 h-4 sm:mr-2" />
               <span className="hidden sm:inline">로그아웃</span>
@@ -1433,16 +1435,16 @@ export default function DashboardPage() {
       </Navbar>
 
       <div className="flex h-[calc(100vh-4rem)]">
-        {/* 사이드바 */}
-        <div className={`fixed left-0 top-16 h-[calc(100vh-4rem)] glass-effect dark:dark-sidebar border-r border-gray-200 dark:border-gray-700 transition-transform duration-300 z-10 ${
+        {/* macOS 스타일 사이드바 */}
+        <div className={`fixed left-0 top-16 h-[calc(100vh-4rem)] glass-effect border-r border-white/20 dark:border-gray-800/40 transition-all duration-500 cubic-bezier(0.25, 0.46, 0.45, 0.94) z-10 ${
           isSidebarOpen ? 'translate-x-0' : '-translate-x-full'
-        } w-80 lg:w-80 md:w-72 sm:w-64 overflow-y-auto custom-scrollbar`}>
+        } w-80 lg:w-80 md:w-72 sm:w-64 overflow-y-auto custom-scrollbar animate-macos-fade-in`}>
           <div className="p-6">
             <h2 className="text-lg font-semibold mb-4 text-gray-900 dark:text-white">위젯 추가</h2>
             
             <div className="space-y-3">
               <Card 
-                className="p-4 cursor-pointer dark-widget hover:scale-105 transition-all duration-200 border border-gray-200 dark:border-gray-700"
+                className="p-4 cursor-pointer macos-widget animate-macos-slide-in"
                 onClick={() => openAddWidgetModal('search')}
               >
                 <div className="flex items-center space-x-3">
@@ -1459,7 +1461,7 @@ export default function DashboardPage() {
               </Card>
 
               <Card 
-                className="p-4 cursor-pointer dark-widget hover:scale-105 transition-all duration-200 border border-gray-200 dark:border-gray-700"
+                className="p-4 cursor-pointer macos-widget animate-macos-slide-in"
                 onClick={() => openAddWidgetModal('weather')}
               >
                 <div className="flex items-center space-x-3">
@@ -1476,7 +1478,7 @@ export default function DashboardPage() {
               </Card>
 
               <Card 
-                className="p-4 cursor-pointer dark-widget hover:scale-105 transition-all duration-200 border border-gray-200 dark:border-gray-700"
+                className="p-4 cursor-pointer macos-widget animate-macos-slide-in"
                 onClick={() => openAddWidgetModal('memo')}
               >
                 <div className="flex items-center space-x-3">
@@ -1493,7 +1495,7 @@ export default function DashboardPage() {
               </Card>
 
               <Card 
-                className="p-4 cursor-pointer dark-widget hover:scale-105 transition-all duration-200 border border-gray-200 dark:border-gray-700"
+                className="p-4 cursor-pointer macos-widget animate-macos-slide-in"
                 onClick={() => openAddWidgetModal('link')}
               >
                 <div className="flex items-center space-x-3">
@@ -1510,7 +1512,7 @@ export default function DashboardPage() {
               </Card>
 
               <Card 
-                className="p-4 cursor-pointer dark-widget hover:scale-105 transition-all duration-200 border border-gray-200 dark:border-gray-700"
+                className="p-4 cursor-pointer macos-widget animate-macos-slide-in"
                 onClick={() => openAddWidgetModal('checklist')}
               >
                 <div className="flex items-center space-x-3">
@@ -1527,7 +1529,7 @@ export default function DashboardPage() {
               </Card>
 
               <Card 
-                className="p-4 cursor-pointer dark-widget hover:scale-105 transition-all duration-200 border border-gray-200 dark:border-gray-700"
+                className="p-4 cursor-pointer macos-widget animate-macos-slide-in"
                 onClick={() => openAddWidgetModal('clock')}
               >
                 <div className="flex items-center space-x-3">
@@ -1544,7 +1546,7 @@ export default function DashboardPage() {
               </Card>
 
               <Card 
-                className="p-4 cursor-pointer dark-widget hover:scale-105 transition-all duration-200 border border-gray-200 dark:border-gray-700"
+                className="p-4 cursor-pointer macos-widget animate-macos-slide-in"
                 onClick={() => openAddWidgetModal('calendar')}
               >
                 <div className="flex items-center space-x-3">

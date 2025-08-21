@@ -3,63 +3,81 @@
 @tailwind utilities;
 
 :root {
-  /* Light Theme Colors */
-  --background: rgb(255, 255, 255);
-  --foreground: rgb(23, 23, 23);
-  --card: rgb(255, 255, 255);
-  --card-foreground: rgb(23, 23, 23);
-  --popover: rgb(255, 255, 255);
-  --popover-foreground: rgb(23, 23, 23);
-  --primary: rgb(59, 130, 246);
+  /* macOS Big Sur Light Theme Colors */
+  --background: rgb(248, 249, 251);
+  --background-secondary: rgb(255, 255, 255);
+  --foreground: rgb(28, 28, 30);
+  --card: rgba(255, 255, 255, 0.85);
+  --card-foreground: rgb(28, 28, 30);
+  --popover: rgba(255, 255, 255, 0.95);
+  --popover-foreground: rgb(28, 28, 30);
+  --primary: rgb(0, 122, 255);
   --primary-foreground: rgb(255, 255, 255);
-  --secondary: rgb(243, 244, 246);
-  --secondary-foreground: rgb(17, 24, 39);
-  --muted: rgb(248, 250, 252);
-  --muted-foreground: rgb(100, 116, 139);
-  --accent: rgb(241, 245, 249);
-  --accent-foreground: rgb(15, 23, 42);
-  --destructive: rgb(239, 68, 68);
+  --secondary: rgba(120, 120, 128, 0.12);
+  --secondary-foreground: rgb(60, 60, 67);
+  --muted: rgba(120, 120, 128, 0.08);
+  --muted-foreground: rgb(142, 142, 147);
+  --accent: rgba(0, 122, 255, 0.1);
+  --accent-foreground: rgb(0, 122, 255);
+  --destructive: rgb(255, 59, 48);
   --destructive-foreground: rgb(255, 255, 255);
-  --border: rgb(229, 231, 235);
-  --input: rgb(229, 231, 235);
-  --ring: rgb(59, 130, 246);
-  --radius: 0.5rem;
+  --border: rgba(120, 120, 128, 0.2);
+  --input: rgba(120, 120, 128, 0.12);
+  --ring: rgb(0, 122, 255);
+  --radius: 12px;
+  
+  /* macOS Specific Variables */
+  --glass-bg: rgba(255, 255, 255, 0.7);
+  --glass-border: rgba(255, 255, 255, 0.3);
+  --shadow-light: 0 4px 12px rgba(0, 0, 0, 0.08);
+  --shadow-medium: 0 8px 24px rgba(0, 0, 0, 0.12);
+  --shadow-heavy: 0 16px 48px rgba(0, 0, 0, 0.16);
+  --blur-amount: 20px;
 }
 
 .dark {
-  /* Enhanced Dark Theme Colors with better contrast and modern RGB values */
-  --background: rgb(10, 10, 11);
-  --foreground: rgb(248, 250, 252);
-  --card: rgb(15, 17, 20);
-  --card-foreground: rgb(248, 250, 252);
-  --popover: rgb(15, 17, 20);
-  --popover-foreground: rgb(248, 250, 252);
-  --primary: rgb(96, 165, 250);
-  --primary-foreground: rgb(15, 17, 20);
-  --secondary: rgb(30, 41, 59);
-  --secondary-foreground: rgb(248, 250, 252);
-  --muted: rgb(20, 25, 31);
-  --muted-foreground: rgb(148, 163, 184);
-  --accent: rgb(30, 35, 42);
-  --accent-foreground: rgb(248, 250, 252);
-  --destructive: rgb(220, 38, 38);
-  --destructive-foreground: rgb(248, 250, 252);
-  --border: rgb(39, 46, 58);
-  --input: rgb(39, 46, 58);
-  --ring: rgb(96, 165, 250);
+  /* macOS Big Sur Dark Theme Colors */
+  --background: rgb(28, 28, 30);
+  --background-secondary: rgb(44, 44, 46);
+  --foreground: rgb(255, 255, 255);
+  --card: rgba(58, 58, 60, 0.85);
+  --card-foreground: rgb(255, 255, 255);
+  --popover: rgba(58, 58, 60, 0.95);
+  --popover-foreground: rgb(255, 255, 255);
+  --primary: rgb(10, 132, 255);
+  --primary-foreground: rgb(255, 255, 255);
+  --secondary: rgba(120, 120, 128, 0.16);
+  --secondary-foreground: rgb(235, 235, 245);
+  --muted: rgba(120, 120, 128, 0.12);
+  --muted-foreground: rgb(174, 174, 178);
+  --accent: rgba(10, 132, 255, 0.15);
+  --accent-foreground: rgb(10, 132, 255);
+  --destructive: rgb(255, 69, 58);
+  --destructive-foreground: rgb(255, 255, 255);
+  --border: rgba(84, 84, 88, 0.4);
+  --input: rgba(120, 120, 128, 0.16);
+  --ring: rgb(10, 132, 255);
+  
+  /* macOS Dark Specific Variables */
+  --glass-bg: rgba(58, 58, 60, 0.7);
+  --glass-border: rgba(84, 84, 88, 0.3);
+  --shadow-light: 0 4px 12px rgba(0, 0, 0, 0.3);
+  --shadow-medium: 0 8px 24px rgba(0, 0, 0, 0.4);
+  --shadow-heavy: 0 16px 48px rgba(0, 0, 0, 0.6);
+  --blur-amount: 30px;
   
   /* Additional dark theme specific variables */
-  --sidebar-bg: rgb(15, 17, 20);
-  --sidebar-border: rgb(39, 46, 58);
-  --navbar-bg: rgba(15, 17, 20, 0.95);
-  --modal-bg: rgb(15, 17, 20);
-  --modal-overlay: rgba(0, 0, 0, 0.8);
-  --widget-bg: rgb(20, 25, 31);
-  --widget-border: rgb(39, 46, 58);
-  --hover-bg: rgb(30, 35, 42);
-  --text-primary: rgb(248, 250, 252);
-  --text-secondary: rgb(148, 163, 184);
-  --text-muted: rgb(100, 116, 139);
+  --sidebar-bg: rgba(44, 44, 46, 0.9);
+  --sidebar-border: rgba(84, 84, 88, 0.4);
+  --navbar-bg: rgba(44, 44, 46, 0.85);
+  --modal-bg: rgba(58, 58, 60, 0.95);
+  --modal-overlay: rgba(0, 0, 0, 0.6);
+  --widget-bg: rgba(58, 58, 60, 0.8);
+  --widget-border: rgba(84, 84, 88, 0.4);
+  --hover-bg: rgba(72, 72, 74, 0.8);
+  --text-primary: rgb(255, 255, 255);
+  --text-secondary: rgb(174, 174, 178);
+  --text-muted: rgb(142, 142, 147);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -89,12 +107,36 @@
 body {
   color: var(--foreground);
   background: var(--background);
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans", Ubuntu, Cantarell, "Helvetica Neue", sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Helvetica Neue", Arial, sans-serif;
   font-weight: 400;
+  line-height: 1.6;
+  letter-spacing: -0.01em;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  transition: background-color 0.3s ease, color 0.3s ease;
+  transition: all 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  overflow-x: hidden;
+}
+
+/* macOS 배경 효과 */
+body::before {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: 
+    radial-gradient(ellipse at top, rgba(0, 122, 255, 0.05) 0%, transparent 50%),
+    radial-gradient(ellipse at bottom right, rgba(0, 122, 255, 0.03) 0%, transparent 50%);
+  pointer-events: none;
+  z-index: -1;
+}
+
+.dark body::before {
+  background: 
+    radial-gradient(ellipse at top, rgba(10, 132, 255, 0.08) 0%, transparent 50%),
+    radial-gradient(ellipse at bottom right, rgba(10, 132, 255, 0.05) 0%, transparent 50%);
 }
 
 /* 텍스트 가독성 개선 */
@@ -276,48 +318,146 @@ body {
   box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.2);
 }
 
-/* Enhanced Glass Effect */
+/* macOS 스타일 Glass Effect */
 .glass-effect {
-  background: rgba(255, 255, 255, 0.1);
-  backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+  background: var(--glass-bg);
+  backdrop-filter: blur(var(--blur-amount));
+  -webkit-backdrop-filter: blur(var(--blur-amount));
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--shadow-medium);
+  border-radius: var(--radius);
 }
 
 .dark .glass-effect {
-  background: rgba(15, 17, 20, 0.8);
-  backdrop-filter: blur(16px);
-  border: 1px solid rgba(96, 165, 250, 0.2);
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--shadow-heavy);
 }
 
-/* Animations */
-@keyframes fade-in {
+/* macOS Widget 스타일 */
+.macos-widget {
+  background: var(--card);
+  backdrop-filter: blur(var(--blur-amount));
+  -webkit-backdrop-filter: blur(var(--blur-amount));
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-light);
+  transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  position: relative;
+  overflow: hidden;
+}
+
+.macos-widget::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+}
+
+.dark .macos-widget::before {
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+}
+
+.macos-widget:hover {
+  transform: translateY(-2px) scale(1.02);
+  box-shadow: var(--shadow-heavy);
+  border-color: var(--primary);
+}
+
+.dark .macos-widget:hover {
+  box-shadow: 
+    var(--shadow-heavy),
+    0 0 0 1px rgba(10, 132, 255, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+/* macOS Button 스타일 */
+.macos-button {
+  background: var(--primary);
+  color: var(--primary-foreground);
+  border: none;
+  border-radius: 8px;
+  padding: 8px 16px;
+  font-weight: 500;
+  font-size: 14px;
+  transition: all 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  box-shadow: 
+    0 1px 3px rgba(0, 0, 0, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  cursor: pointer;
+  user-select: none;
+}
+
+.macos-button:hover {
+  transform: translateY(-1px);
+  box-shadow: 
+    0 4px 12px rgba(0, 122, 255, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.3);
+}
+
+.macos-button:active {
+  transform: translateY(0);
+  box-shadow: 
+    0 1px 3px rgba(0, 0, 0, 0.2),
+    inset 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+.macos-button-secondary {
+  background: var(--secondary);
+  color: var(--secondary-foreground);
+  border: 1px solid var(--border);
+}
+
+.macos-button-secondary:hover {
+  background: var(--muted);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-light);
+}
+
+/* macOS Input 스타일 */
+.macos-input {
+  background: var(--input);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-size: 14px;
+  transition: all 0.2s ease;
+  outline: none;
+  color: var(--foreground);
+}
+
+.macos-input:focus {
+  border-color: var(--primary);
+  box-shadow: 
+    0 0 0 3px rgba(0, 122, 255, 0.1),
+    inset 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.dark .macos-input:focus {
+  box-shadow: 
+    0 0 0 3px rgba(10, 132, 255, 0.2),
+    inset 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+/* macOS 스타일 애니메이션 */
+@keyframes macos-fade-in {
   from {
     opacity: 0;
-    transform: scale(0.95);
+    transform: scale(0.94) translateY(4px);
   }
   to {
     opacity: 1;
-    transform: scale(1);
+    transform: scale(1) translateY(0);
   }
 }
 
-@keyframes slide-in-left {
+@keyframes macos-slide-in {
   from {
     opacity: 0;
-    transform: translateX(-20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(0);
-  }
-}
-
-@keyframes slide-in-up {
-  from {
-    opacity: 0;
-    transform: translateY(20px);
+    transform: translateY(12px);
   }
   to {
     opacity: 1;
@@ -325,16 +465,76 @@ body {
   }
 }
 
-.animate-fade-in {
-  animation: fade-in 0.3s ease-out;
+@keyframes macos-bounce {
+  0%, 20%, 53%, 80%, 100% {
+    transform: translate3d(0, 0, 0);
+  }
+  40%, 43% {
+    transform: translate3d(0, -6px, 0);
+  }
+  70% {
+    transform: translate3d(0, -3px, 0);
+  }
+  90% {
+    transform: translate3d(0, -1px, 0);
+  }
 }
 
-.animate-slide-in-left {
-  animation: slide-in-left 0.3s ease-out;
+@keyframes macos-pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(0, 122, 255, 0.4);
+  }
+  70% {
+    box-shadow: 0 0 0 10px rgba(0, 122, 255, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(0, 122, 255, 0);
+  }
 }
 
-.animate-slide-in-up {
-  animation: slide-in-up 0.3s ease-out;
+@keyframes macos-shimmer {
+  0% {
+    background-position: -200px 0;
+  }
+  100% {
+    background-position: calc(200px + 100%) 0;
+  }
+}
+
+.animate-macos-fade-in {
+  animation: macos-fade-in 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+.animate-macos-slide-in {
+  animation: macos-slide-in 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+.animate-macos-bounce {
+  animation: macos-bounce 1s ease-in-out;
+}
+
+.animate-macos-pulse {
+  animation: macos-pulse 2s infinite;
+}
+
+.animate-macos-shimmer {
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.2),
+    transparent
+  );
+  background-size: 200px 100%;
+  animation: macos-shimmer 1.5s infinite;
+}
+
+.dark .animate-macos-shimmer {
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.1),
+    transparent
+  );
 }
 
 /* Theme transition improvements */
@@ -367,4 +567,31 @@ html.light {
   background: linear-gradient(135deg, rgb(37, 99, 235), rgb(126, 34, 206));
   transform: translateY(-1px);
   box-shadow: 0 10px 25px rgba(59, 130, 246, 0.4);
+}
+
+/* 리사이즈 핸들 커서 스타일 */
+.cursor-n-resize { cursor: n-resize; }
+.cursor-ne-resize { cursor: ne-resize; }
+.cursor-e-resize { cursor: e-resize; }
+.cursor-se-resize { cursor: se-resize; }
+.cursor-s-resize { cursor: s-resize; }
+.cursor-sw-resize { cursor: sw-resize; }
+.cursor-w-resize { cursor: w-resize; }
+.cursor-nw-resize { cursor: nw-resize; }
+
+/* 리사이즈 핸들 기본 스타일 */
+.resize-handle {
+  user-select: none;
+  touch-action: none;
+  will-change: transform;
+}
+
+.resize-handle:hover {
+  transform: scale(1.1);
+}
+
+/* 리사이즈 중일 때 전체 문서 커서 변경 */
+.resizing * {
+  cursor: inherit !important;
+  user-select: none !important;
 }

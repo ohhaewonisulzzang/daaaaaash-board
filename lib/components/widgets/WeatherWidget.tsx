@@ -104,7 +104,7 @@ export default function WeatherWidget({
 
   if (loading) {
     return (
-      <Card className="p-6 h-full flex items-center justify-center">
+      <Card className="macos-widget p-6 h-full flex items-center justify-center animate-macos-fade-in">
         <div className="animate-spin w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full"></div>
       </Card>
     )
@@ -112,14 +112,14 @@ export default function WeatherWidget({
 
   if (error) {
     return (
-      <Card className="p-6 h-full flex flex-col items-center justify-center">
+      <Card className="macos-widget p-6 h-full flex flex-col items-center justify-center animate-macos-fade-in">
         <Cloud className="w-12 h-12 text-gray-400 mb-2" />
         <p className="text-sm text-gray-500 dark:text-gray-400 text-center">{error}</p>
         <Button 
           size="sm" 
           variant="outline" 
           onClick={fetchWeatherData}
-          className="mt-2"
+          className="macos-button-secondary mt-2"
         >
           다시 시도
         </Button>
@@ -127,7 +127,7 @@ export default function WeatherWidget({
           <Button
             variant="destructive"
             size="sm"
-            className="absolute top-2 right-2"
+            className="absolute top-2 right-2 macos-button text-red-500"
             onClick={onRemove}
           >
             ×
@@ -139,7 +139,7 @@ export default function WeatherWidget({
 
   if (!weatherData) {
     return (
-      <Card className="p-6 h-full flex items-center justify-center">
+      <Card className="macos-widget p-6 h-full flex items-center justify-center animate-macos-fade-in">
         <p className="text-gray-500 dark:text-gray-400">날씨 정보 없음</p>
       </Card>
     )
@@ -147,7 +147,7 @@ export default function WeatherWidget({
 
   return (
     <Card 
-      className={`p-6 h-full relative ${isEditMode ? 'border-2 border-dashed border-blue-300' : ''}`}
+      className={`macos-widget p-6 h-full relative animate-macos-fade-in ${isEditMode ? 'border-2 border-dashed border-blue-300 animate-macos-pulse' : ''}`}
       onMouseDown={(e) => {
         // 편집 모드에서 위젯 내부 클릭 시 드래그 이벤트 차단
         if (isEditMode) {
@@ -199,7 +199,7 @@ export default function WeatherWidget({
         <Button
           variant="destructive"
           size="sm"
-          className="absolute top-2 right-2"
+          className="absolute top-2 right-2 macos-button text-red-500 hover:scale-110"
           onClick={onRemove}
         >
           ×
