@@ -51,12 +51,13 @@ import {
   IMemoSettings,
   ISearchSettings,
   ICalendarSettings,
-  IBackgroundOption
+  IBackgroundOption,
+  ILayoutSettings
 } from '@/types'
 import { normalizeUrl, extractDomain, detectUrlType, getRecommendedIcon } from '@/lib/utils/urlUtils'
 import { getFaviconWithCache, DEFAULT_ICONS } from '@/lib/utils/faviconUtils'
 
-// 기본 위젯 타입 정의
+// 기본 위젯 타입 정의 (types/index.ts에서 가져와야 하지만 임시로 여기에 정의)
 interface IChecklistItem {
   id: string
   text: string
@@ -160,8 +161,8 @@ export default function DashboardPage() {
       // 게스트 모드: localStorage에서 사용자명 불러오기
       const guestUsername = localStorage.getItem('guest_username')
       setUserName(guestUsername || '게스트')
-    } else if (user?.profile?.full_name) {
-      setUserName(user.profile.full_name)
+    } else if ((user as any)?.profile?.full_name) {
+      setUserName((user as any).profile.full_name)
     } else if (user?.user_metadata?.full_name) {
       setUserName(user.user_metadata.full_name)
     } else if (user?.email) {
@@ -232,15 +233,16 @@ export default function DashboardPage() {
           id: 'guest-dashboard',
           user_id: 'guest',
           name: 'Guest Dashboard',
-          background_type: guestData.dashboard.background_type,
+          background_type: guestData.dashboard.background_type as 'color' | 'gradient' | 'image',
           background_value: guestData.dashboard.background_value,
-          layout_settings: guestData.dashboard.layout_settings,
+          layout_settings: guestData.dashboard.layout_settings as ILayoutSettings,
           created_at: guestData.createdAt,
           updated_at: guestData.createdAt
         })
         
         setWidgets(guestData.widgets.map(w => ({
           ...w,
+          type: w.type as 'link' | 'checklist' | 'clock' | 'weather' | 'calendar' | 'search' | 'memo',
           dashboard_id: 'guest-dashboard',
           created_at: guestData.createdAt,
           updated_at: guestData.createdAt
@@ -590,7 +592,7 @@ export default function DashboardPage() {
         const newWidget: IWidget = {
           id: widgetId,
           dashboard_id: 'guest-dashboard',
-          type: selectedWidgetType,
+          type: selectedWidgetType as 'link' | 'checklist' | 'clock' | 'weather' | 'calendar' | 'search' | 'memo',
           position_x: widgetData.position_x,
           position_y: widgetData.position_y,
           width: widgetData.width,
@@ -884,7 +886,7 @@ export default function DashboardPage() {
       
       if (result.success && result.faviconUrl) {
         // 성공적으로 favicon을 가져온 경우
-        setNewWidgetData(prev => ({
+        setNewWidgetData((prev: any) => ({
           ...prev,
           icon: result.faviconUrl,
           faviconUrl: result.faviconUrl,
@@ -901,7 +903,7 @@ export default function DashboardPage() {
         
         // 기본 추천 아이콘 사용
         const recommendedIcon = getRecommendedIcon(url)
-        setNewWidgetData(prev => ({
+        setNewWidgetData((prev: any) => ({
           ...prev,
           icon: prev.icon || recommendedIcon,
           hasCustomIcon: true
@@ -912,7 +914,7 @@ export default function DashboardPage() {
       
       // 기본 추천 아이콘 사용
       const recommendedIcon = getRecommendedIcon(url)
-      setNewWidgetData(prev => ({
+      setNewWidgetData((prev: any) => ({
         ...prev,
         icon: prev.icon || recommendedIcon,
         hasCustomIcon: true
@@ -949,7 +951,7 @@ export default function DashboardPage() {
           <Card 
             key={widget.id}
             className={`macos-widget p-6 relative animate-macos-fade-in ${isEditMode ? 'border-2 border-dashed border-blue-300 animate-macos-pulse' : ''}`}
-            onMouseDown={(e) => {
+            onMouseDown={(e: React.MouseEvent<HTMLDivElement>) => {
               // 편집 모드에서 위젯 내부 클릭 시 드래그 이벤트 차단
               if (isEditMode) {
                 e.stopPropagation()
@@ -993,7 +995,7 @@ export default function DashboardPage() {
           <Card 
             key={widget.id}
             className={`macos-widget p-6 relative animate-macos-fade-in ${isEditMode ? 'border-2 border-dashed border-blue-300 animate-macos-pulse' : ''}`}
-            onMouseDown={(e) => {
+            onMouseDown={(e: React.MouseEvent<HTMLDivElement>) => {
               // 편집 모드에서 위젯 내부 클릭 시 드래그 이벤트 차단
               if (isEditMode) {
                 e.stopPropagation()
@@ -1005,7 +1007,7 @@ export default function DashboardPage() {
               target={urlType === 'local' || urlType === 'file' ? '_self' : '_blank'}
               rel="noopener noreferrer"
               className="flex items-center space-x-4 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-lg p-3 transition-all duration-200 group"
-              onClick={(e) => {
+              onClick={(e: React.MouseEvent<HTMLAnchorElement>) => {
                 // 검색인 경우 새 탭에서 열기
                 if (urlType === 'search') {
                   e.preventDefault()
@@ -1021,7 +1023,7 @@ export default function DashboardPage() {
                       src={linkSettings.icon} 
                       alt="favicon" 
                       className="w-8 h-8 rounded"
-                      onError={(e) => {
+                      onError={(e: React.SyntheticEvent<HTMLImageElement>) => {
                         // favicon 로드 실패 시 기본 아이콘으로 대체
                         e.currentTarget.style.display = 'none'
                         const fallbackDiv = document.createElement('div')
@@ -1077,7 +1079,7 @@ export default function DashboardPage() {
           <Card 
             key={widget.id}
             className={`macos-widget p-6 relative animate-macos-fade-in ${isEditMode ? 'border-2 border-dashed border-blue-300 animate-macos-pulse' : ''}`}
-            onMouseDown={(e) => {
+            onMouseDown={(e: React.MouseEvent<HTMLDivElement>) => {
               // 편집 모드에서 위젯 내부 클릭 시 드래그 이벤트 차단
               if (isEditMode) {
                 e.stopPropagation()
@@ -1151,7 +1153,7 @@ export default function DashboardPage() {
                       // URL이 입력되면 자동으로 제목 추천
                       if (url && !newWidgetData.title) {
                         const domain = extractDomain(url)
-                        setNewWidgetData(prev => ({
+                        setNewWidgetData((prev: any) => ({
                           ...prev,
                           url,
                           title: prev.title || domain || '새 링크'
@@ -1239,10 +1241,10 @@ export default function DashboardPage() {
                             src={newWidgetData.faviconUrl} 
                             alt="favicon" 
                             className="w-8 h-8 rounded"
-                            onError={(e) => {
+                            onError={(e: React.SyntheticEvent<HTMLImageElement>) => {
                               // favicon 로드 실패 시 기본 아이콘으로 변경
                               e.currentTarget.style.display = 'none'
-                              setNewWidgetData(prev => ({
+                              setNewWidgetData((prev: any) => ({
                                 ...prev,
                                 icon: getRecommendedIcon(prev.url || ''),
                                 faviconUrl: null,
@@ -1443,7 +1445,7 @@ export default function DashboardPage() {
                 onUpload={handleImageUpload}
                 currentImage={
                   dashboard?.background_type === 'image' 
-                    ? dashboard.background_value.replace(/^url\(|\)$/g, '').replace(/['"]/g, '')
+                    ? dashboard.background_value?.replace(/^url\(|\)$/g, '').replace(/['"]/g, '')
                     : undefined
                 }
                 onRemove={handleImageRemove}
