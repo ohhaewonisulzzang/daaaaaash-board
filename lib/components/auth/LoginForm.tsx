@@ -11,6 +11,7 @@ import Link from 'next/link'
 interface ILoginFormProps {
   onLogin: (email: string, password: string) => Promise<boolean>
   isLoading: boolean
+  onGuestMode?: () => void
 }
 
 // SVG 아이콘 컴포넌트들
@@ -90,7 +91,14 @@ const CheckIcon = () => (
   </svg>
 )
 
-export default function LoginForm({ onLogin, isLoading }: ILoginFormProps) {
+const GuestIcon = () => (
+  <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M12 11a2 2 0 100-4 2 2 0 000 4z" />
+  </svg>
+)
+
+export default function LoginForm({ onLogin, isLoading, onGuestMode }: ILoginFormProps) {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
@@ -350,6 +358,31 @@ export default function LoginForm({ onLogin, isLoading }: ILoginFormProps) {
               )}
             </Button>
           </div>
+
+          {/* 게스트 모드 버튼 */}
+          {onGuestMode && (
+            <>
+              <div className="flex items-center my-3">
+                <div className="flex-1 border-t border-gray-200 dark:border-gray-600"></div>
+                <span className="px-3 text-xs text-gray-500 dark:text-gray-400">체험해보기</span>
+                <div className="flex-1 border-t border-gray-200 dark:border-gray-600"></div>
+              </div>
+
+              <Button
+                type="button"
+                onClick={onGuestMode}
+                disabled={isLoading}
+                className="w-full h-9 sm:h-10 bg-gradient-to-r from-gray-500 to-gray-600 hover:from-gray-600 hover:to-gray-700 text-white font-medium rounded-lg transition-all duration-200 flex items-center justify-center text-sm border border-gray-400 hover:border-gray-500"
+              >
+                <GuestIcon />
+                게스트로 체험하기
+              </Button>
+
+              <p className="text-xs text-center text-gray-500 dark:text-gray-400 mt-2">
+                * 게스트 모드는 데이터가 임시 저장되며 브라우저 종료 시 삭제됩니다
+              </p>
+            </>
+          )}
 
           {/* 회원가입 링크 */}
           <div className="mt-4 text-center">

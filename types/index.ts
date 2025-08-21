@@ -82,7 +82,7 @@ export interface ILayoutSettings {
 export interface IWidget {
   id: string
   dashboard_id: string
-  type: 'link' | 'checklist' | 'clock' | 'weather' | 'memo' | 'search'
+  type: 'link' | 'checklist' | 'clock' | 'weather' | 'memo' | 'search' | 'calendar'
   position_x: number
   position_y: number
   width: number
@@ -99,6 +99,7 @@ export type IWidgetSettings =
   | IWeatherSettings 
   | IMemoSettings 
   | ISearchSettings
+  | ICalendarSettings
 
 export interface ILinkSettings {
   url: string
@@ -150,6 +151,13 @@ export interface ISearchEngine {
   name: string
   url: string
   icon?: string
+}
+
+export interface ICalendarSettings {
+  view?: 'month' | 'week' | 'day'
+  startDayOfWeek?: number // 0: Sunday, 1: Monday
+  showWeekNumbers?: boolean
+  showTodayButton?: boolean
 }
 
 // 배경 관련 타입

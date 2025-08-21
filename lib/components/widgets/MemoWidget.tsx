@@ -64,7 +64,15 @@ export default function MemoWidget({
   }
 
   return (
-    <Card className={`p-4 h-full relative ${isEditMode ? 'border-2 border-dashed border-blue-300' : ''}`}>
+    <Card 
+      className={`p-4 h-full relative ${isEditMode ? 'border-2 border-dashed border-blue-300' : ''}`}
+      onMouseDown={(e) => {
+        // 편집 모드에서 위젯 내부 클릭 시 드래그 이벤트 차단
+        if (isEditMode) {
+          e.stopPropagation()
+        }
+      }}
+    >
       <div className="flex flex-col h-full">
         {/* 헤더 */}
         <div className="flex items-center justify-between mb-3">

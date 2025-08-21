@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { User } from '@supabase/supabase-js'
 import { supabase } from '@/lib/supabase/client'
+import { guestStorage } from '@/lib/utils/guestStorage'
 
 interface IAuthContext {
   user: User | null
@@ -10,13 +11,27 @@ interface IAuthContext {
   login: (email: string, password: string) => Promise<boolean>
   logout: () => Promise<void>
   isAuthenticated: boolean
+  isGuestMode: boolean
+  enterGuestMode: () => void
+  exitGuestMode: () => Promise<void>
 }
 
 export function useAuth(): IAuthContext {
   const [user, setUser] = useState<User | null>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const [isGuestMode, setIsGuestMode] = useState(false)
 
   useEffect(() => {
+    // 게스트 모드 확인
+    const guestMode = guestStorage.isGuestMode()
+    setIsGuestMode(guestMode)
+
+    if (guestMode) {
+      // 게스트 모드일 때는 로딩 완료 처리
+      setIsLoading(false)
+      return
+    }
+
     // 현재 세션 확인
     const getInitialSession = async () => {
       const { data: { session } } = await supabase.auth.getSession()
@@ -67,11 +82,34 @@ export function useAuth(): IAuthContext {
     }
   }
 
+  const enterGuestMode = (): void => {
+    guestStorage.enableGuestMode()
+    setIsGuestMode(true)
+    setUser(null)
+    
+    // 기본 게스트 데이터 생성
+    if (!guestStorage.loadData()) {
+      guestStorage.saveData(guestStorage.createDefaultData())
+    }
+  }
+
+  const exitGuestMode = async (): Promise<void> => {
+    guestStorage.disableGuestMode()
+    setIsGuestMode(false)
+    
+    // 일반 인증 모드로 전환 후 세션 재확인
+    const { data: { session } } = await supabase.auth.getSession()
+    setUser(session?.user ?? null)
+  }
+
   return {
     user,
     isLoading,
     login,
     logout,
-    isAuthenticated: !!user
+    isAuthenticated: !!user || isGuestMode,
+    isGuestMode,
+    enterGuestMode,
+    exitGuestMode
   }
 }

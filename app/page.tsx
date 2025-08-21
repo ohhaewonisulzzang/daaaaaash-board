@@ -7,9 +7,14 @@ import { LoginForm } from '@/lib/components/auth'
 import { useAuth } from '@/lib/hooks'
 
 export default function HomePage() {
-  const { user, isLoading, login, isAuthenticated } = useAuth()
+  const { user, isLoading, login, isAuthenticated, enterGuestMode } = useAuth()
   const router = useRouter()
   const hasRedirectedRef = useRef(false)
+
+  const handleGuestMode = () => {
+    enterGuestMode()
+    router.replace('/dashboard')
+  }
 
   // 로그인된 사용자는 대시보드로 리다이렉트 - 로딩 완료 후에만 리다이렉트
   useEffect(() => {
@@ -38,7 +43,7 @@ export default function HomePage() {
         </div>
       ) : !isAuthenticated ? (
         // 로그인되지 않았을 때 로그인 폼 표시
-        <LoginForm onLogin={login} isLoading={isLoading} />
+        <LoginForm onLogin={login} isLoading={isLoading} onGuestMode={handleGuestMode} />
       ) : null}
     </ThemeProvider>
   )
