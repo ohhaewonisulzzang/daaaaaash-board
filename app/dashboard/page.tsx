@@ -994,7 +994,7 @@ export default function DashboardPage() {
         return (
           <Card 
             key={widget.id}
-            className={`macos-widget p-6 relative animate-macos-fade-in ${isEditMode ? 'border-2 border-dashed border-blue-300 animate-macos-pulse' : ''}`}
+            className={`macos-widget bg-white dark:bg-white p-6 relative animate-macos-fade-in ${isEditMode ? 'border-2 border-dashed border-blue-300 animate-macos-pulse' : ''}`}
             onMouseDown={(e: React.MouseEvent<HTMLDivElement>) => {
               // 편집 모드에서 위젯 내부 클릭 시 드래그 이벤트 차단
               if (isEditMode) {
@@ -1006,7 +1006,7 @@ export default function DashboardPage() {
               href={normalizedUrl} 
               target={urlType === 'local' || urlType === 'file' ? '_self' : '_blank'}
               rel="noopener noreferrer"
-              className="flex items-center space-x-4 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-lg p-3 transition-all duration-200 group"
+              className="flex items-center space-x-4 hover:bg-gray-50 dark:hover:bg-gray-100 rounded-lg p-3 transition-all duration-200 group"
               onClick={(e: React.MouseEvent<HTMLAnchorElement>) => {
                 // 검색인 경우 새 탭에서 열기
                 if (urlType === 'search') {
@@ -1138,7 +1138,7 @@ export default function DashboardPage() {
                   value={newWidgetData.title || ''}
                   onChange={(e) => setNewWidgetData({...newWidgetData, title: e.target.value})}
                   placeholder="링크 제목을 입력하세요"
-                  className="form-input"
+                  className="form-input border-2 border-black bg-white text-black"
                 />
               </div>
               <div>
@@ -1161,7 +1161,7 @@ export default function DashboardPage() {
                       }
                     }}
                     placeholder="다양한 형태의 URL을 입력하세요"
-                    className="form-input"
+                    className="form-input border-2 border-black bg-white text-black"
                   />
                   
                   {/* Favicon 가져오기 버튼 */}
@@ -1279,7 +1279,7 @@ export default function DashboardPage() {
                       faviconUrl: null
                     })}
                     placeholder="🔗 또는 이모지를 직접 입력"
-                    className="form-input flex-1"
+                    className="form-input flex-1 border-2 border-black bg-white text-black"
                   />
                   <Button
                     type="button"
@@ -1342,12 +1342,13 @@ export default function DashboardPage() {
                   value={newWidgetData.title || ''}
                   onChange={(e) => setNewWidgetData({...newWidgetData, title: e.target.value})}
                   placeholder="체크리스트 제목을 입력하세요"
+                  className="border-2 border-black bg-white text-black"
                 />
               </div>
               <div>
                 <label className="block text-sm font-medium mb-1">항목들 (각 줄마다 하나씩)</label>
                 <textarea
-                  className="w-full p-2 border rounded-md"
+                  className="w-full p-2 border-2 border-black bg-white text-black rounded-md"
                   rows={4}
                   value={newWidgetData.itemsText || ''}
                   onChange={(e) => {
@@ -1373,6 +1374,7 @@ export default function DashboardPage() {
                   value={newWidgetData.city || 'Seoul'}
                   onChange={(e) => setNewWidgetData({...newWidgetData, city: e.target.value})}
                   placeholder="Seoul"
+                  className="border-2 border-black bg-white text-black"
                 />
               </div>
               <div>
@@ -1398,12 +1400,13 @@ export default function DashboardPage() {
                   value={newWidgetData.title || ''}
                   onChange={(e) => setNewWidgetData({...newWidgetData, title: e.target.value})}
                   placeholder="메모 제목을 입력하세요"
+                  className="border-2 border-black bg-white text-black"
                 />
               </div>
               <div>
                 <label className="block text-sm font-medium mb-1">내용</label>
                 <textarea
-                  className="w-full p-2 border rounded-md"
+                  className="w-full p-2 border-2 border-black bg-white text-black rounded-md"
                   rows={4}
                   value={newWidgetData.content || ''}
                   onChange={(e) => setNewWidgetData({...newWidgetData, content: e.target.value})}
