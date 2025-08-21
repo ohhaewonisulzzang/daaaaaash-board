@@ -114,7 +114,7 @@ export default function WeatherWidget({
     return (
       <Card className="p-6 h-full flex flex-col items-center justify-center">
         <Cloud className="w-12 h-12 text-gray-400 mb-2" />
-        <p className="text-sm text-gray-500 text-center">{error}</p>
+        <p className="text-sm text-gray-500 dark:text-gray-400 text-center">{error}</p>
         <Button 
           size="sm" 
           variant="outline" 
@@ -140,7 +140,7 @@ export default function WeatherWidget({
   if (!weatherData) {
     return (
       <Card className="p-6 h-full flex items-center justify-center">
-        <p className="text-gray-500">날씨 정보 없음</p>
+        <p className="text-gray-500 dark:text-gray-400">날씨 정보 없음</p>
       </Card>
     )
   }
@@ -159,8 +159,8 @@ export default function WeatherWidget({
         {/* 헤더 */}
         <div className="flex items-center justify-between mb-4">
           <div>
-            <h3 className="font-semibold text-lg">{weatherData.name}</h3>
-            <p className="text-sm text-gray-500">
+            <h3 className="font-semibold text-lg text-gray-900 dark:text-white">{weatherData.name}</h3>
+            <p className="text-sm text-gray-500 dark:text-gray-400">
               {weatherData.weather[0].description}
             </p>
           </div>
@@ -169,7 +169,7 @@ export default function WeatherWidget({
 
         {/* 온도 */}
         <div className="flex items-center justify-center mb-4">
-          <span className="text-4xl font-bold">
+          <span className="text-4xl font-bold text-gray-900 dark:text-white">
             {formatTemperature(weatherData.main.temp)}{getTemperatureUnit()}
           </span>
         </div>
@@ -178,19 +178,19 @@ export default function WeatherWidget({
         <div className="grid grid-cols-2 gap-4 text-sm">
           <div className="flex items-center space-x-2">
             <Thermometer className="w-4 h-4 text-orange-500" />
-            <span>체감 {formatTemperature(weatherData.main.feels_like)}{getTemperatureUnit()}</span>
+            <span className="text-gray-700 dark:text-gray-300">체감 {formatTemperature(weatherData.main.feels_like)}{getTemperatureUnit()}</span>
           </div>
           <div className="flex items-center space-x-2">
             <Droplets className="w-4 h-4 text-blue-500" />
-            <span>습도 {weatherData.main.humidity}%</span>
+            <span className="text-gray-700 dark:text-gray-300">습도 {weatherData.main.humidity}%</span>
           </div>
           <div className="flex items-center space-x-2">
             <Wind className="w-4 h-4 text-gray-500" />
-            <span>바람 {weatherData.wind.speed}m/s</span>
+            <span className="text-gray-700 dark:text-gray-300">바람 {weatherData.wind.speed}m/s</span>
           </div>
           <div className="flex items-center space-x-2">
             <Cloud className="w-4 h-4 text-gray-500" />
-            <span>{weatherData.main.pressure}hPa</span>
+            <span className="text-gray-700 dark:text-gray-300">{weatherData.main.pressure}hPa</span>
           </div>
         </div>
       </div>

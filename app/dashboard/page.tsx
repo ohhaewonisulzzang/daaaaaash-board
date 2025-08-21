@@ -53,6 +53,7 @@ import {
   ICalendarSettings,
   IBackgroundOption
 } from '@/types'
+import { normalizeUrl, extractDomain, detectUrlType, getRecommendedIcon } from '@/lib/utils/urlUtils'
 
 // 기본 위젯 타입 정의
 interface IChecklistItem {
@@ -151,7 +152,9 @@ export default function DashboardPage() {
   // 사용자 정보 로드
   useEffect(() => {
     if (isGuestMode) {
-      setUserName('게스트')
+      // 게스트 모드: localStorage에서 사용자명 불러오기
+      const guestUsername = localStorage.getItem('guest_username')
+      setUserName(guestUsername || '게스트')
     } else if (user?.profile?.full_name) {
       setUserName(user.profile.full_name)
     } else if (user?.user_metadata?.full_name) {
@@ -436,10 +439,14 @@ export default function DashboardPage() {
 
     switch (selectedWidgetType) {
       case 'link':
+        const normalizedUrl = normalizeUrl(newWidgetData.url || 'https://example.com')
+        const displayDomain = extractDomain(newWidgetData.url || 'https://example.com')
+        const recommendedIcon = getRecommendedIcon(newWidgetData.url || 'https://example.com')
+        
         settings = {
-          url: newWidgetData.url || 'https://example.com',
-          title: newWidgetData.title || '새 링크',
-          icon: newWidgetData.icon || '🔗',
+          url: normalizedUrl,
+          title: newWidgetData.title || displayDomain || '새 링크',
+          icon: newWidgetData.icon || recommendedIcon,
           description: newWidgetData.description || ''
         } as ILinkSettings
         break
@@ -494,11 +501,60 @@ export default function DashboardPage() {
         settings = {} as IWidgetSettings
     }
 
+    // 화면 크기에 따른 최대 열 수 계산
+    const getMaxCols = () => {
+      if (typeof window === 'undefined') return 6
+      const width = window.innerWidth
+      if (width < 640) return 1 // sm
+      if (width < 768) return 2 // md
+      if (width < 1024) return 3 // lg
+      if (width < 1280) return 4 // xl
+      return 6 // 2xl 이상
+    }
+
+    // 뷰포트 높이에 따른 최대 행 수 계산 (네비게이션 바와 패딩 제외)
+    const getMaxRows = () => {
+      if (typeof window === 'undefined') return 4
+      const availableHeight = window.innerHeight - 64 - 48 // navbar(64px) + padding(48px)
+      const estimatedRowHeight = 200 // 위젯 기본 높이 + gap
+      return Math.floor(availableHeight / estimatedRowHeight)
+    }
+
+    const maxCols = getMaxCols()
+    const maxRows = getMaxRows()
+    const maxWidgets = maxCols * maxRows
+
+    // 이미 최대 위젯 수에 도달했는지 확인
+    if (widgets.length >= maxWidgets) {
+      toast({
+        variant: 'destructive',
+        title: '알림',
+        description: `현재 화면에는 최대 ${maxWidgets}개의 위젯만 배치할 수 있습니다.`
+      })
+      return
+    }
+
+    // 빈 위치 찾기
+    const findAvailablePosition = () => {
+      for (let row = 0; row < maxRows; row++) {
+        for (let col = 0; col < maxCols; col++) {
+          const isOccupied = widgets.some(w => w.position_x === col && w.position_y === row)
+          if (!isOccupied) {
+            return { x: col, y: row }
+          }
+        }
+      }
+      // 빈 위치가 없으면 첫 번째 위치에 배치
+      return { x: 0, y: 0 }
+    }
+
+    const position = findAvailablePosition()
+
     const widgetData = {
       dashboard_id: dashboard.id,
       type: selectedWidgetType,
-      position_x: widgets.length % 4,
-      position_y: Math.floor(widgets.length / 4),
+      position_x: position.x,
+      position_y: position.y,
       width: selectedWidgetType === 'clock' ? 2 : 
              selectedWidgetType === 'search' ? 4 :
              selectedWidgetType === 'weather' ? 2 : 
@@ -686,6 +742,35 @@ export default function DashboardPage() {
     await updateDashboardBackground(background)
   }
 
+  const handleLayoutReset = async () => {
+    if (!confirm('모든 위젯의 위치를 초기화하시겠습니까?')) {
+      return
+    }
+
+    try {
+      // 위젯들을 그리드 순서대로 재배치
+      const updatedWidgets = widgets.map((widget, index) => ({
+        ...widget,
+        position_x: index % 4,
+        position_y: Math.floor(index / 4)
+      }))
+
+      setWidgets(updatedWidgets)
+      await saveWidgetPositions(updatedWidgets)
+
+      toast({
+        title: '성공',
+        description: '레이아웃이 초기화되었습니다.'
+      })
+    } catch (error) {
+      toast({
+        variant: 'destructive',
+        title: '오류',
+        description: '레이아웃 초기화에 실패했습니다.'
+      })
+    }
+  }
+
   const updateChecklistItem = async (widgetId: string, itemId: string, completed: boolean) => {
     try {
       // 로컬 상태 업데이트
@@ -813,14 +898,14 @@ export default function DashboardPage() {
           >
             <div className="text-center">
               <Clock className="w-8 h-8 mx-auto mb-2 text-blue-500" />
-              <div className="text-2xl font-bold">
+              <div className="text-2xl font-bold text-gray-900 dark:text-white">
                 {currentTime.toLocaleTimeString('ko-KR', { 
                   hour: '2-digit', 
                   minute: '2-digit',
                   second: '2-digit'
                 })}
               </div>
-              <div className="text-sm text-gray-500">
+              <div className="text-sm text-gray-500 dark:text-gray-400">
                 {currentTime.toLocaleDateString('ko-KR')}
               </div>
             </div>
@@ -838,10 +923,16 @@ export default function DashboardPage() {
         )
       case 'link':
         const linkSettings = widget.settings as ILinkSettings
+        
+        const normalizedUrl = normalizeUrl(linkSettings.url)
+        const displayUrl = extractDomain(linkSettings.url)
+        const urlType = detectUrlType(linkSettings.url)
+        const recommendedIcon = getRecommendedIcon(linkSettings.url)
+        
         return (
           <Card 
             key={widget.id}
-            className={`p-6 relative ${isEditMode ? 'border-2 border-dashed border-blue-300' : ''}`}
+            className={`p-6 relative dark-widget hover:scale-105 transition-all duration-200 ${isEditMode ? 'border-2 border-dashed border-blue-300' : ''}`}
             onMouseDown={(e) => {
               // 편집 모드에서 위젯 내부 클릭 시 드래그 이벤트 차단
               if (isEditMode) {
@@ -850,26 +941,52 @@ export default function DashboardPage() {
             }}
           >
             <a 
-              href={linkSettings.url} 
-              target="_blank" 
+              href={normalizedUrl} 
+              target={urlType === 'local' || urlType === 'file' ? '_self' : '_blank'}
               rel="noopener noreferrer"
-              className="flex items-center space-x-3 hover:bg-gray-50 rounded p-2 transition-colors"
+              className="flex items-center space-x-4 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-lg p-3 transition-all duration-200 group"
+              onClick={(e) => {
+                // 검색인 경우 새 탭에서 열기
+                if (urlType === 'search') {
+                  e.preventDefault()
+                  window.open(normalizedUrl, '_blank', 'noopener,noreferrer')
+                }
+              }}
             >
-              <div className="text-2xl">
-                {linkSettings.icon || <LinkIcon className="w-6 h-6" />}
+              <div className="flex-shrink-0">
+                {linkSettings.icon && linkSettings.icon !== '🔗' ? (
+                  <div className="text-3xl group-hover:scale-110 transition-transform duration-200">
+                    {linkSettings.icon}
+                  </div>
+                ) : (
+                  <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500 to-purple-600 dark:from-blue-600 dark:to-purple-700 flex items-center justify-center group-hover:scale-110 transition-transform duration-200">
+                    <span className="text-2xl">{recommendedIcon}</span>
+                  </div>
+                )}
               </div>
-              <div>
-                <div className="font-medium">{linkSettings.title}</div>
-                <div className="text-sm text-gray-500">
-                  {new URL(linkSettings.url).hostname}
+              <div className="flex-1 min-w-0">
+                <div className="font-semibold text-gray-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors duration-200 truncate">
+                  {linkSettings.title}
                 </div>
+                <div className="text-sm text-gray-500 dark:text-gray-400 group-hover:text-gray-600 dark:group-hover:text-gray-300 transition-colors duration-200 truncate">
+                  {displayUrl}
+                </div>
+                {urlType !== 'web' && (
+                  <div className="text-xs text-blue-600 dark:text-blue-400 font-medium mt-1">
+                    {urlType === 'email' && '이메일'}
+                    {urlType === 'phone' && '전화번호'}
+                    {urlType === 'file' && '파일'}
+                    {urlType === 'local' && '로컬'}
+                    {urlType === 'search' && '검색'}
+                  </div>
+                )}
               </div>
             </a>
             {isEditMode && (
               <Button
                 variant="destructive"
                 size="sm"
-                className="absolute top-2 right-2"
+                className="absolute top-2 right-2 opacity-80 hover:opacity-100"
                 onClick={() => removeWidget(widget.id)}
               >
                 ×
@@ -892,7 +1009,7 @@ export default function DashboardPage() {
           >
             <div className="flex items-center space-x-2 mb-4">
               <List className="w-5 h-5 text-blue-500" />
-              <h3 className="font-semibold">{checklistSettings.title}</h3>
+              <h3 className="font-semibold text-gray-900 dark:text-white">{checklistSettings.title}</h3>
             </div>
             <div className="space-y-2 max-h-32 overflow-y-auto">
               {checklistSettings.items.map((item: IChecklistItem) => (
@@ -903,7 +1020,7 @@ export default function DashboardPage() {
                     onChange={() => updateChecklistItem(widget.id, item.id, !item.completed)}
                     className="rounded"
                   />
-                  <span className={item.completed ? 'line-through text-gray-500' : ''}>
+                  <span className={item.completed ? 'line-through text-gray-500 dark:text-gray-400' : 'text-gray-900 dark:text-white'}>
                     {item.text}
                   </span>
                 </div>
@@ -937,28 +1054,104 @@ export default function DashboardPage() {
           {selectedWidgetType === 'link' && (
             <>
               <div>
-                <label className="block text-sm font-medium mb-1">제목</label>
+                <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-200">제목</label>
                 <Input
                   value={newWidgetData.title || ''}
                   onChange={(e) => setNewWidgetData({...newWidgetData, title: e.target.value})}
                   placeholder="링크 제목을 입력하세요"
+                  className="form-input"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium mb-1">URL</label>
+                <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-200">URL</label>
                 <Input
                   value={newWidgetData.url || ''}
-                  onChange={(e) => setNewWidgetData({...newWidgetData, url: e.target.value})}
-                  placeholder="https://example.com"
+                  onChange={(e) => {
+                    const url = e.target.value
+                    setNewWidgetData({...newWidgetData, url})
+                    
+                    // URL이 입력되면 자동으로 아이콘과 제목 추천
+                    if (url && !newWidgetData.title) {
+                      const recommendedIcon = getRecommendedIcon(url)
+                      const domain = extractDomain(url)
+                      
+                      setNewWidgetData(prev => ({
+                        ...prev,
+                        url,
+                        icon: prev.icon || recommendedIcon,
+                        title: prev.title || domain || '새 링크'
+                      }))
+                    }
+                  }}
+                  placeholder="다양한 형태의 URL을 입력하세요"
+                  className="form-input"
                 />
+                <div className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                  <div className="font-medium mb-1">지원되는 URL 형태:</div>
+                  <div className="grid grid-cols-2 gap-1 text-xs">
+                    <span>• https://example.com</span>
+                    <span>• example.com</span>
+                    <span>• localhost:3000</span>
+                    <span>• 192.168.1.1</span>
+                    <span>• mailto:test@email.com</span>
+                    <span>• tel:010-1234-5678</span>
+                    <span>• file:///path/to/file</span>
+                    <span>• 검색어 (구글 검색)</span>
+                  </div>
+                </div>
+                {newWidgetData.url && (
+                  <div className="mt-3 p-3 bg-gray-50 dark:bg-gray-700 rounded-lg border">
+                    <div className="text-xs font-medium text-gray-600 dark:text-gray-300 mb-2">미리보기:</div>
+                    <div className="flex items-center space-x-3">
+                      <div className="text-2xl">
+                        {newWidgetData.icon || getRecommendedIcon(newWidgetData.url)}
+                      </div>
+                      <div>
+                        <div className="font-medium text-gray-900 dark:text-white text-sm">
+                          {newWidgetData.title || extractDomain(newWidgetData.url)}
+                        </div>
+                        <div className="text-xs text-gray-500 dark:text-gray-400">
+                          {extractDomain(newWidgetData.url)}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
               <div>
-                <label className="block text-sm font-medium mb-1">아이콘 (선택사항)</label>
-                <Input
-                  value={newWidgetData.icon || ''}
-                  onChange={(e) => setNewWidgetData({...newWidgetData, icon: e.target.value})}
-                  placeholder="🔗"
-                />
+                <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-200">아이콘 (선택사항)</label>
+                <div className="flex space-x-2">
+                  <Input
+                    value={newWidgetData.icon || ''}
+                    onChange={(e) => setNewWidgetData({...newWidgetData, icon: e.target.value})}
+                    placeholder="🔗"
+                    className="form-input flex-1"
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => {
+                      if (newWidgetData.url) {
+                        setNewWidgetData({...newWidgetData, icon: getRecommendedIcon(newWidgetData.url)})
+                      }
+                    }}
+                    className="px-3"
+                  >
+                    추천
+                  </Button>
+                </div>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {['🔗', '🌐', '📚', '💼', '🎯', '⚡', '🔧', '📊', '🎨', '🎵', '📺', '🎮'].map(emoji => (
+                    <button
+                      key={emoji}
+                      type="button"
+                      onClick={() => setNewWidgetData({...newWidgetData, icon: emoji})}
+                      className="text-xl hover:bg-gray-100 dark:hover:bg-gray-600 p-1 rounded transition-colors"
+                    >
+                      {emoji}
+                    </button>
+                  ))}
+                </div>
               </div>
             </>
           )}
@@ -1172,19 +1365,20 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="min-h-screen" style={backgroundStyle}>
+    <div className="h-screen overflow-hidden" style={backgroundStyle}>
       {/* 상단 네비게이션 */}
-      <Navbar className="border-b bg-white/80 backdrop-blur-sm">
+      <Navbar className="border-b bg-white/95 dark:bg-gray-900/95 backdrop-blur-md border-gray-200 dark:border-gray-700">
         <div className="flex items-center justify-between w-full px-4">
           <div className="flex items-center space-x-2 sm:space-x-4">
             <Button
               variant="ghost"
               size="sm"
               onClick={toggleSidebar}
+              className="hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-200"
             >
               <Grid className="w-5 h-5" />
             </Button>
-            <h1 className="text-lg sm:text-xl font-bold text-gray-800">PersonalDash</h1>
+            <h1 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white tracking-tight">PersonalDash</h1>
           </div>
           
           <div className="flex items-center space-x-1 sm:space-x-3">
@@ -1192,6 +1386,7 @@ export default function DashboardPage() {
               <UserNameEditor 
                 currentName={userName}
                 onNameUpdate={handleUserNameUpdate}
+                isGuestMode={isGuestMode}
               />
             )}
             <Badge variant={isEditMode ? "default" : "secondary"} className="hidden sm:inline-flex">
@@ -1237,24 +1432,26 @@ export default function DashboardPage() {
         </div>
       </Navbar>
 
-      <div className="flex">
+      <div className="flex h-[calc(100vh-4rem)]">
         {/* 사이드바 */}
-        <div className={`fixed left-0 top-16 h-full bg-white border-r transition-transform duration-300 z-10 ${
+        <div className={`fixed left-0 top-16 h-[calc(100vh-4rem)] glass-effect dark:dark-sidebar border-r border-gray-200 dark:border-gray-700 transition-transform duration-300 z-10 ${
           isSidebarOpen ? 'translate-x-0' : '-translate-x-full'
-        } w-80 lg:w-80 md:w-72 sm:w-64 overflow-y-auto`}>
+        } w-80 lg:w-80 md:w-72 sm:w-64 overflow-y-auto custom-scrollbar`}>
           <div className="p-6">
-            <h2 className="text-lg font-semibold mb-4">위젯 추가</h2>
+            <h2 className="text-lg font-semibold mb-4 text-gray-900 dark:text-white">위젯 추가</h2>
             
             <div className="space-y-3">
               <Card 
-                className="p-4 cursor-pointer hover:bg-gray-50 transition-colors"
+                className="p-4 cursor-pointer dark-widget hover:scale-105 transition-all duration-200 border border-gray-200 dark:border-gray-700"
                 onClick={() => openAddWidgetModal('search')}
               >
                 <div className="flex items-center space-x-3">
-                  <Search className="w-6 h-6 text-green-500" />
+                  <div className="p-2 rounded-lg bg-green-100 dark:bg-green-900/30">
+                    <Search className="w-5 h-5 text-green-600 dark:text-green-400" />
+                  </div>
                   <div>
-                    <div className="font-medium">검색 위젯</div>
-                    <div className="text-sm text-gray-500">
+                    <div className="font-medium text-gray-900 dark:text-white">검색 위젯</div>
+                    <div className="text-sm text-gray-500 dark:text-gray-400">
                       통합 검색 (Google, Naver 등)
                     </div>
                   </div>
@@ -1262,14 +1459,16 @@ export default function DashboardPage() {
               </Card>
 
               <Card 
-                className="p-4 cursor-pointer hover:bg-gray-50 transition-colors"
+                className="p-4 cursor-pointer dark-widget hover:scale-105 transition-all duration-200 border border-gray-200 dark:border-gray-700"
                 onClick={() => openAddWidgetModal('weather')}
               >
                 <div className="flex items-center space-x-3">
-                  <Cloud className="w-6 h-6 text-blue-500" />
+                  <div className="p-2 rounded-lg bg-blue-100 dark:bg-blue-900/30">
+                    <Cloud className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                  </div>
                   <div>
-                    <div className="font-medium">날씨 위젯</div>
-                    <div className="text-sm text-gray-500">
+                    <div className="font-medium text-gray-900 dark:text-white">날씨 위젯</div>
+                    <div className="text-sm text-gray-500 dark:text-gray-400">
                       현재 날씨 및 예보 정보
                     </div>
                   </div>
@@ -1277,14 +1476,16 @@ export default function DashboardPage() {
               </Card>
 
               <Card 
-                className="p-4 cursor-pointer hover:bg-gray-50 transition-colors"
+                className="p-4 cursor-pointer dark-widget hover:scale-105 transition-all duration-200 border border-gray-200 dark:border-gray-700"
                 onClick={() => openAddWidgetModal('memo')}
               >
                 <div className="flex items-center space-x-3">
-                  <FileText className="w-6 h-6 text-orange-500" />
+                  <div className="p-2 rounded-lg bg-orange-100 dark:bg-orange-900/30">
+                    <FileText className="w-5 h-5 text-orange-600 dark:text-orange-400" />
+                  </div>
                   <div>
-                    <div className="font-medium">메모 위젯</div>
-                    <div className="text-sm text-gray-500">
+                    <div className="font-medium text-gray-900 dark:text-white">메모 위젯</div>
+                    <div className="text-sm text-gray-500 dark:text-gray-400">
                       빠른 메모 작성 및 관리
                     </div>
                   </div>
@@ -1292,14 +1493,16 @@ export default function DashboardPage() {
               </Card>
 
               <Card 
-                className="p-4 cursor-pointer hover:bg-gray-50 transition-colors"
+                className="p-4 cursor-pointer dark-widget hover:scale-105 transition-all duration-200 border border-gray-200 dark:border-gray-700"
                 onClick={() => openAddWidgetModal('link')}
               >
                 <div className="flex items-center space-x-3">
-                  <LinkIcon className="w-6 h-6 text-blue-500" />
+                  <div className="p-2 rounded-lg bg-blue-100 dark:bg-blue-900/30">
+                    <LinkIcon className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                  </div>
                   <div>
-                    <div className="font-medium">링크 위젯</div>
-                    <div className="text-sm text-gray-500">
+                    <div className="font-medium text-gray-900 dark:text-white">링크 위젯</div>
+                    <div className="text-sm text-gray-500 dark:text-gray-400">
                       자주 사용하는 웹사이트 바로가기
                     </div>
                   </div>
@@ -1307,14 +1510,16 @@ export default function DashboardPage() {
               </Card>
 
               <Card 
-                className="p-4 cursor-pointer hover:bg-gray-50 transition-colors"
+                className="p-4 cursor-pointer dark-widget hover:scale-105 transition-all duration-200 border border-gray-200 dark:border-gray-700"
                 onClick={() => openAddWidgetModal('checklist')}
               >
                 <div className="flex items-center space-x-3">
-                  <List className="w-6 h-6 text-green-500" />
+                  <div className="p-2 rounded-lg bg-green-100 dark:bg-green-900/30">
+                    <List className="w-5 h-5 text-green-600 dark:text-green-400" />
+                  </div>
                   <div>
-                    <div className="font-medium">체크리스트 위젯</div>
-                    <div className="text-sm text-gray-500">
+                    <div className="font-medium text-gray-900 dark:text-white">체크리스트 위젯</div>
+                    <div className="text-sm text-gray-500 dark:text-gray-400">
                       할 일 목록 관리
                     </div>
                   </div>
@@ -1322,14 +1527,16 @@ export default function DashboardPage() {
               </Card>
 
               <Card 
-                className="p-4 cursor-pointer hover:bg-gray-50 transition-colors"
+                className="p-4 cursor-pointer dark-widget hover:scale-105 transition-all duration-200 border border-gray-200 dark:border-gray-700"
                 onClick={() => openAddWidgetModal('clock')}
               >
                 <div className="flex items-center space-x-3">
-                  <Clock className="w-6 h-6 text-purple-500" />
+                  <div className="p-2 rounded-lg bg-purple-100 dark:bg-purple-900/30">
+                    <Clock className="w-5 h-5 text-purple-600 dark:text-purple-400" />
+                  </div>
                   <div>
-                    <div className="font-medium">시계 위젯</div>
-                    <div className="text-sm text-gray-500">
+                    <div className="font-medium text-gray-900 dark:text-white">시계 위젯</div>
+                    <div className="text-sm text-gray-500 dark:text-gray-400">
                       현재 시간 표시
                     </div>
                   </div>
@@ -1337,14 +1544,16 @@ export default function DashboardPage() {
               </Card>
 
               <Card 
-                className="p-4 cursor-pointer hover:bg-gray-50 transition-colors"
+                className="p-4 cursor-pointer dark-widget hover:scale-105 transition-all duration-200 border border-gray-200 dark:border-gray-700"
                 onClick={() => openAddWidgetModal('calendar')}
               >
                 <div className="flex items-center space-x-3">
-                  <CalendarIcon className="w-6 h-6 text-indigo-500" />
+                  <div className="p-2 rounded-lg bg-indigo-100 dark:bg-indigo-900/30">
+                    <CalendarIcon className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
+                  </div>
                   <div>
-                    <div className="font-medium">캘린더 위젯</div>
-                    <div className="text-sm text-gray-500">
+                    <div className="font-medium text-gray-900 dark:text-white">캘린더 위젯</div>
+                    <div className="text-sm text-gray-500 dark:text-gray-400">
                       월별 캘린더 보기
                     </div>
                   </div>
@@ -1352,11 +1561,11 @@ export default function DashboardPage() {
               </Card>
             </div>
 
-            <Spacer y={6} />
+            <div className="h-6" />
             <Divider />
-            <Spacer y={6} />
+            <div className="h-6" />
 
-            <h3 className="text-md font-semibold mb-4">대시보드 설정</h3>
+            <h3 className="text-md font-semibold mb-4 text-gray-900 dark:text-white">대시보드 설정</h3>
             <div className="space-y-3">
               <Button 
                 variant="outline" 
@@ -1366,7 +1575,11 @@ export default function DashboardPage() {
                 <Palette className="w-4 h-4 mr-2" />
                 배경 및 테마 변경
               </Button>
-              <Button variant="outline" className="w-full justify-start">
+              <Button 
+                variant="outline" 
+                className="w-full justify-start"
+                onClick={handleLayoutReset}
+              >
                 <Layout className="w-4 h-4 mr-2" />
                 레이아웃 초기화
               </Button>
@@ -1375,72 +1588,74 @@ export default function DashboardPage() {
         </div>
 
         {/* 메인 콘텐츠 */}
-        <div className={`flex-1 p-4 sm:p-6 transition-all duration-300 ${
+        <div className={`flex-1 transition-all duration-300 overflow-hidden ${
           isSidebarOpen ? 'lg:ml-80 md:ml-72 sm:ml-64 ml-0' : 'ml-0'
         }`}>
-          <div className="max-w-7xl mx-auto">
-            {/* 위젯 그리드 */}
-            <DndContext
-              sensors={sensors}
-              collisionDetection={closestCenter}
-              onDragStart={handleDragStart}
-              onDragEnd={handleDragEnd}
-            >
-              <SortableContext items={widgets?.map(w => w.id) || []} strategy={rectSortingStrategy}>
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4 auto-rows-fr">
-                  {widgets
-                    ?.sort((a, b) => {
-                      // position_y(행)로 먼저 정렬, 같으면 position_x(열)로 정렬
-                      if (a.position_y !== b.position_y) {
-                        return a.position_y - b.position_y
-                      }
-                      return a.position_x - b.position_x
-                    })
-                    ?.map((widget) => (
-                      <SortableWidget
-                        key={widget.id}
-                        id={widget.id}
-                        widget={widget}
-                        isEditMode={isEditMode}
-                      >
-                        <ResizableWidget
+          <div className="h-full p-4 sm:p-6 overflow-auto">
+            <div className="max-w-7xl mx-auto">
+              {/* 위젯 그리드 */}
+              <DndContext
+                sensors={sensors}
+                collisionDetection={closestCenter}
+                onDragStart={handleDragStart}
+                onDragEnd={handleDragEnd}
+              >
+                <SortableContext items={widgets?.map(w => w.id) || []} strategy={rectSortingStrategy}>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4 auto-rows-fr min-h-[calc(100vh-8rem)]">
+                    {widgets
+                      ?.sort((a, b) => {
+                        // position_y(행)로 먼저 정렬, 같으면 position_x(열)로 정렬
+                        if (a.position_y !== b.position_y) {
+                          return a.position_y - b.position_y
+                        }
+                        return a.position_x - b.position_x
+                      })
+                      ?.map((widget) => (
+                        <SortableWidget
+                          key={widget.id}
                           id={widget.id}
                           widget={widget}
                           isEditMode={isEditMode}
-                          onResize={handleWidgetResize}
                         >
-                          {renderWidget(widget)}
-                        </ResizableWidget>
-                      </SortableWidget>
-                    )) || []}
-                </div>
-              </SortableContext>
-              
-              <DragOverlay>
-                {activeId ? (
-                  <div className="opacity-0">
-                    {renderWidget(widgets.find(w => w.id === activeId)!)}
+                          <ResizableWidget
+                            id={widget.id}
+                            widget={widget}
+                            isEditMode={isEditMode}
+                            onResize={handleWidgetResize}
+                          >
+                            {renderWidget(widget)}
+                          </ResizableWidget>
+                        </SortableWidget>
+                      )) || []}
                   </div>
-                ) : null}
-              </DragOverlay>
-            </DndContext>
+                </SortableContext>
+                
+                <DragOverlay>
+                  {activeId ? (
+                    <div className="opacity-0">
+                      {renderWidget(widgets.find(w => w.id === activeId)!)}
+                    </div>
+                  ) : null}
+                </DragOverlay>
+              </DndContext>
 
-            {/* 빈 상태 */}
-            {widgets.length === 0 && (
-              <div className="text-center py-12">
-                <Grid className="w-16 h-16 mx-auto text-white/50 mb-4" />
-                <h3 className="text-lg font-medium text-white/80 mb-2">
-                  위젯을 추가해보세요
-                </h3>
-                <p className="text-white/60 mb-6">
-                  왼쪽 사이드바에서 원하는 위젯을 선택하여 대시보드를 구성하세요
-                </p>
-                <Button onClick={toggleSidebar} className="bg-white/20 hover:bg-white/30 text-white border-white/30">
-                  <Plus className="w-4 h-4 mr-2" />
-                  위젯 추가하기
-                </Button>
-              </div>
-            )}
+              {/* 빈 상태 */}
+              {widgets.length === 0 && (
+                <div className="text-center py-12 min-h-[calc(100vh-8rem)] flex flex-col justify-center">
+                  <Grid className="w-16 h-16 mx-auto text-white/50 mb-4" />
+                  <h3 className="text-lg font-medium text-white/80 mb-2">
+                    위젯을 추가해보세요
+                  </h3>
+                  <p className="text-white/60 mb-6">
+                    왼쪽 사이드바에서 원하는 위젯을 선택하여 대시보드를 구성하세요
+                  </p>
+                  <Button onClick={toggleSidebar} className="bg-white/20 hover:bg-white/30 text-white border-white/30">
+                    <Plus className="w-4 h-4 mr-2" />
+                    위젯 추가하기
+                  </Button>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>

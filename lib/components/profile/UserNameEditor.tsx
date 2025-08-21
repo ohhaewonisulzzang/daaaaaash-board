@@ -9,9 +9,10 @@ import { Edit, Save, X, User } from 'lucide-react'
 interface IUserNameEditorProps {
   currentName: string
   onNameUpdate: (newName: string) => void
+  isGuestMode?: boolean
 }
 
-export default function UserNameEditor({ currentName, onNameUpdate }: IUserNameEditorProps) {
+export default function UserNameEditor({ currentName, onNameUpdate, isGuestMode = false }: IUserNameEditorProps) {
   const [isEditing, setIsEditing] = useState(false)
   const [newName, setNewName] = useState(currentName || '')
   const [isLoading, setIsLoading] = useState(false)
@@ -35,29 +36,41 @@ export default function UserNameEditor({ currentName, onNameUpdate }: IUserNameE
     setIsLoading(true)
 
     try {
-      const response = await fetch('/api/profile', {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ full_name: newName.trim() }),
-      })
-
-      const data = await response.json()
-
-      if (data.success) {
+      if (isGuestMode) {
+        // 게스트 모드: localStorage에 저장
+        localStorage.setItem('guest_username', newName.trim())
         onNameUpdate(newName.trim())
         setIsEditing(false)
         toast({
           title: '성공',
-          description: '사용자명이 변경되었습니다.'
+          description: '사용자명이 변경되었습니다. (게스트 모드)'
         })
       } else {
-        toast({
-          variant: 'destructive',
-          title: '오류',
-          description: data.error || '사용자명 변경에 실패했습니다.'
+        // 일반 모드: API 호출
+        const response = await fetch('/api/profile', {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ full_name: newName.trim() }),
         })
+
+        const data = await response.json()
+
+        if (data.success) {
+          onNameUpdate(newName.trim())
+          setIsEditing(false)
+          toast({
+            title: '성공',
+            description: '사용자명이 변경되었습니다.'
+          })
+        } else {
+          toast({
+            variant: 'destructive',
+            title: '오류',
+            description: data.error || '사용자명 변경에 실패했습니다.'
+          })
+        }
       }
     } catch (error) {
       console.error('Username update error:', error)

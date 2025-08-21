@@ -31,9 +31,24 @@ export function ThemeToggle() {
       size="sm" 
       onClick={toggleTheme}
       title={getTooltip()}
-      className="transition-all duration-200"
+      className="relative p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-200 transition-all duration-300 hover:scale-110"
     >
-      {getIcon()}
+      <div className="relative">
+        {theme === 'system' ? (
+          <Monitor className="h-5 w-5" />
+        ) : resolvedTheme === 'dark' ? (
+          <Moon className="h-5 w-5 text-blue-400" />
+        ) : (
+          <Sun className="h-5 w-5 text-amber-500" />
+        )}
+        {/* 글로우 효과 */}
+        {resolvedTheme === 'dark' && (
+          <div className="absolute inset-0 h-5 w-5 rounded-full bg-blue-400/20 blur-sm" />
+        )}
+        {resolvedTheme === 'light' && (
+          <div className="absolute inset-0 h-5 w-5 rounded-full bg-amber-500/20 blur-sm" />
+        )}
+      </div>
       <span className="sr-only">테마 토글</span>
     </Button>
   )

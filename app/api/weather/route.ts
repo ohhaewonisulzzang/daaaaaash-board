@@ -10,26 +10,41 @@ export async function GET(request: NextRequest) {
     const apiKey = process.env.OPENWEATHER_API_KEY
     
     if (!apiKey) {
-      // 목업 날씨 데이터
+      // 실제적인 목업 날씨 데이터 (서울 기준)
+      const now = new Date()
+      const hour = now.getHours()
+      const isNight = hour >= 18 || hour < 6
+      
+      // 시간대별 온도 변화 시뮬레이션
+      const baseTemp = units === 'metric' ? 18 : 
+                      units === 'imperial' ? 64 : 291
+      const tempVariation = Math.sin((hour / 24) * 2 * Math.PI) * 8
+      const currentTemp = baseTemp + tempVariation
+      
+      // 날씨 조건 시뮬레이션
+      const weatherConditions = [
+        { main: 'Clear', description: isNight ? '맑은 밤' : '맑음', icon: isNight ? '01n' : '01d' },
+        { main: 'Clouds', description: '구름 많음', icon: isNight ? '02n' : '02d' },
+        { main: 'Rain', description: '비', icon: isNight ? '10n' : '10d' }
+      ]
+      
+      const randomWeather = weatherConditions[Math.floor(Math.random() * 3)]
+      
       const mockWeatherData = {
-        weather: [{
-          main: 'Clear',
-          description: 'clear sky',
-          icon: '01d'
-        }],
+        weather: [randomWeather],
         main: {
-          temp: 22,
-          feels_like: 24,
-          humidity: 65,
-          pressure: 1013
+          temp: Math.round(currentTemp * 10) / 10,
+          feels_like: Math.round((currentTemp + (Math.random() * 4 - 2)) * 10) / 10,
+          humidity: Math.floor(50 + Math.random() * 40),
+          pressure: Math.floor(1000 + Math.random() * 30)
         },
         name: city,
         sys: {
           country: 'KR'
         },
         wind: {
-          speed: 3.2,
-          deg: 180
+          speed: Math.round((Math.random() * 10) * 10) / 10,
+          deg: Math.floor(Math.random() * 360)
         }
       }
       
