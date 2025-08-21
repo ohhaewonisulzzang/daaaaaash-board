@@ -54,6 +54,7 @@ import {
   IBackgroundOption
 } from '@/types'
 import { normalizeUrl, extractDomain, detectUrlType, getRecommendedIcon } from '@/lib/utils/urlUtils'
+import { getFaviconWithCache, DEFAULT_ICONS } from '@/lib/utils/faviconUtils'
 
 // 기본 위젯 타입 정의
 interface IChecklistItem {
@@ -109,6 +110,10 @@ export default function DashboardPage() {
   
   // 시계 위젯용 현재 시간 상태
   const [currentTime, setCurrentTime] = useState(new Date())
+  
+  // favicon 관련 상태
+  const [faviconLoading, setFaviconLoading] = useState(false)
+  const [faviconError, setFaviconError] = useState<string | null>(null)
 
   // 배경 옵션
   const backgroundOptions: IBackgroundOption[] = [
@@ -429,6 +434,8 @@ export default function DashboardPage() {
   const openAddWidgetModal = (type: string) => {
     setSelectedWidgetType(type)
     setNewWidgetData({})
+    setFaviconLoading(false)
+    setFaviconError(null)
     setIsAddWidgetModalOpen(true)
   }
 
@@ -443,10 +450,13 @@ export default function DashboardPage() {
         const displayDomain = extractDomain(newWidgetData.url || 'https://example.com')
         const recommendedIcon = getRecommendedIcon(newWidgetData.url || 'https://example.com')
         
+        // favicon URL이 있으면 그것을 사용하고, 없으면 선택된 아이콘 또는 추천 아이콘 사용
+        const finalIcon = newWidgetData.faviconUrl || newWidgetData.icon || recommendedIcon
+        
         settings = {
           url: normalizedUrl,
           title: newWidgetData.title || displayDomain || '새 링크',
-          icon: newWidgetData.icon || recommendedIcon,
+          icon: finalIcon,
           description: newWidgetData.description || ''
         } as ILinkSettings
         break
@@ -862,6 +872,56 @@ export default function DashboardPage() {
     }
   }
 
+  // favicon 자동 가져오기 함수
+  const fetchFaviconForUrl = async (url: string) => {
+    if (!url || url.trim() === '') return
+
+    setFaviconLoading(true)
+    setFaviconError(null)
+
+    try {
+      const result = await getFaviconWithCache(url)
+      
+      if (result.success && result.faviconUrl) {
+        // 성공적으로 favicon을 가져온 경우
+        setNewWidgetData(prev => ({
+          ...prev,
+          icon: result.faviconUrl,
+          faviconUrl: result.faviconUrl,
+          hasCustomIcon: false
+        }))
+        
+        toast({
+          title: '성공',
+          description: 'Favicon을 자동으로 가져왔습니다.'
+        })
+      } else {
+        // favicon을 가져오지 못한 경우
+        setFaviconError(result.error || 'Favicon을 찾을 수 없습니다')
+        
+        // 기본 추천 아이콘 사용
+        const recommendedIcon = getRecommendedIcon(url)
+        setNewWidgetData(prev => ({
+          ...prev,
+          icon: prev.icon || recommendedIcon,
+          hasCustomIcon: true
+        }))
+      }
+    } catch (error) {
+      setFaviconError('Favicon 가져오기 중 오류가 발생했습니다')
+      
+      // 기본 추천 아이콘 사용
+      const recommendedIcon = getRecommendedIcon(url)
+      setNewWidgetData(prev => ({
+        ...prev,
+        icon: prev.icon || recommendedIcon,
+        hasCustomIcon: true
+      }))
+    } finally {
+      setFaviconLoading(false)
+    }
+  }
+
   const renderWidget = (widget: IWidget) => {
     const baseProps = {
       isEditMode,
@@ -954,7 +1014,24 @@ export default function DashboardPage() {
               }}
             >
               <div className="flex-shrink-0">
-                {linkSettings.icon && linkSettings.icon !== '🔗' ? (
+                {/* favicon URL인지 확인 (http로 시작하는 경우) */}
+                {linkSettings.icon && linkSettings.icon.startsWith('http') ? (
+                  <div className="w-12 h-12 rounded-xl bg-white dark:bg-gray-800 flex items-center justify-center group-hover:scale-110 transition-transform duration-200 border border-gray-200 dark:border-gray-700">
+                    <img 
+                      src={linkSettings.icon} 
+                      alt="favicon" 
+                      className="w-8 h-8 rounded"
+                      onError={(e) => {
+                        // favicon 로드 실패 시 기본 아이콘으로 대체
+                        e.currentTarget.style.display = 'none'
+                        const fallbackDiv = document.createElement('div')
+                        fallbackDiv.className = 'text-2xl'
+                        fallbackDiv.textContent = recommendedIcon
+                        e.currentTarget.parentNode?.appendChild(fallbackDiv)
+                      }}
+                    />
+                  </div>
+                ) : linkSettings.icon && linkSettings.icon !== '🔗' ? (
                   <div className="text-3xl group-hover:scale-110 transition-transform duration-200">
                     {linkSettings.icon}
                   </div>
@@ -1064,28 +1141,58 @@ export default function DashboardPage() {
               </div>
               <div>
                 <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-200">URL</label>
-                <Input
-                  value={newWidgetData.url || ''}
-                  onChange={(e) => {
-                    const url = e.target.value
-                    setNewWidgetData({...newWidgetData, url})
-                    
-                    // URL이 입력되면 자동으로 아이콘과 제목 추천
-                    if (url && !newWidgetData.title) {
-                      const recommendedIcon = getRecommendedIcon(url)
-                      const domain = extractDomain(url)
+                <div className="space-y-2">
+                  <Input
+                    value={newWidgetData.url || ''}
+                    onChange={(e) => {
+                      const url = e.target.value
+                      setNewWidgetData({...newWidgetData, url})
                       
-                      setNewWidgetData(prev => ({
-                        ...prev,
-                        url,
-                        icon: prev.icon || recommendedIcon,
-                        title: prev.title || domain || '새 링크'
-                      }))
-                    }
-                  }}
-                  placeholder="다양한 형태의 URL을 입력하세요"
-                  className="form-input"
-                />
+                      // URL이 입력되면 자동으로 제목 추천
+                      if (url && !newWidgetData.title) {
+                        const domain = extractDomain(url)
+                        setNewWidgetData(prev => ({
+                          ...prev,
+                          url,
+                          title: prev.title || domain || '새 링크'
+                        }))
+                      }
+                    }}
+                    placeholder="다양한 형태의 URL을 입력하세요"
+                    className="form-input"
+                  />
+                  
+                  {/* Favicon 가져오기 버튼 */}
+                  {newWidgetData.url && (
+                    <div className="flex items-center space-x-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => fetchFaviconForUrl(newWidgetData.url)}
+                        disabled={faviconLoading}
+                        className="macos-button-secondary"
+                      >
+                        {faviconLoading ? (
+                          <>
+                            <div className="animate-spin w-3 h-3 border border-current border-t-transparent rounded-full mr-1" />
+                            Favicon 가져오는 중...
+                          </>
+                        ) : (
+                          <>
+                            🔄 Favicon 자동 가져오기
+                          </>
+                        )}
+                      </Button>
+                      
+                      {faviconError && (
+                        <div className="text-xs text-red-500">
+                          {faviconError}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
                 <div className="mt-2 text-xs text-gray-500 dark:text-gray-400">
                   <div className="font-medium mb-1">지원되는 URL 형태:</div>
                   <div className="grid grid-cols-2 gap-1 text-xs">
@@ -1119,12 +1226,57 @@ export default function DashboardPage() {
                 )}
               </div>
               <div>
-                <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-200">아이콘 (선택사항)</label>
-                <div className="flex space-x-2">
+                <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-200">아이콘</label>
+                
+                {/* 현재 아이콘 미리보기 */}
+                {newWidgetData.icon && (
+                  <div className="mb-3 p-3 bg-gray-50 dark:bg-gray-700 rounded-lg border">
+                    <div className="text-xs font-medium text-gray-600 dark:text-gray-300 mb-2">현재 아이콘:</div>
+                    <div className="flex items-center space-x-3">
+                      <div className="text-3xl">
+                        {newWidgetData.faviconUrl ? (
+                          <img 
+                            src={newWidgetData.faviconUrl} 
+                            alt="favicon" 
+                            className="w-8 h-8 rounded"
+                            onError={(e) => {
+                              // favicon 로드 실패 시 기본 아이콘으로 변경
+                              e.currentTarget.style.display = 'none'
+                              setNewWidgetData(prev => ({
+                                ...prev,
+                                icon: getRecommendedIcon(prev.url || ''),
+                                faviconUrl: null,
+                                hasCustomIcon: true
+                              }))
+                            }}
+                          />
+                        ) : (
+                          newWidgetData.icon
+                        )}
+                      </div>
+                      <div>
+                        <div className="text-sm font-medium text-gray-900 dark:text-white">
+                          {newWidgetData.faviconUrl ? 'Favicon (자동)' : '이모지 아이콘'}
+                        </div>
+                        <div className="text-xs text-gray-500 dark:text-gray-400">
+                          {newWidgetData.faviconUrl ? '웹사이트에서 자동으로 가져온 아이콘' : '수동으로 선택한 아이콘'}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+                
+                {/* 수동 아이콘 입력 */}
+                <div className="flex space-x-2 mb-3">
                   <Input
-                    value={newWidgetData.icon || ''}
-                    onChange={(e) => setNewWidgetData({...newWidgetData, icon: e.target.value})}
-                    placeholder="🔗"
+                    value={newWidgetData.hasCustomIcon ? newWidgetData.icon || '' : ''}
+                    onChange={(e) => setNewWidgetData({
+                      ...newWidgetData, 
+                      icon: e.target.value,
+                      hasCustomIcon: true,
+                      faviconUrl: null
+                    })}
+                    placeholder="🔗 또는 이모지를 직접 입력"
                     className="form-input flex-1"
                   />
                   <Button
@@ -1132,25 +1284,49 @@ export default function DashboardPage() {
                     variant="outline"
                     onClick={() => {
                       if (newWidgetData.url) {
-                        setNewWidgetData({...newWidgetData, icon: getRecommendedIcon(newWidgetData.url)})
+                        const recommendedIcon = getRecommendedIcon(newWidgetData.url)
+                        setNewWidgetData({
+                          ...newWidgetData, 
+                          icon: recommendedIcon,
+                          hasCustomIcon: true,
+                          faviconUrl: null
+                        })
                       }
                     }}
-                    className="px-3"
+                    className="macos-button-secondary px-3"
                   >
                     추천
                   </Button>
                 </div>
-                <div className="mt-2 flex flex-wrap gap-2">
-                  {['🔗', '🌐', '📚', '💼', '🎯', '⚡', '🔧', '📊', '🎨', '🎵', '📺', '🎮'].map(emoji => (
-                    <button
-                      key={emoji}
-                      type="button"
-                      onClick={() => setNewWidgetData({...newWidgetData, icon: emoji})}
-                      className="text-xl hover:bg-gray-100 dark:hover:bg-gray-600 p-1 rounded transition-colors"
-                    >
-                      {emoji}
-                    </button>
-                  ))}
+                
+                {/* 기본 아이콘 선택 */}
+                <div className="mb-3">
+                  <div className="text-sm font-medium mb-2 text-gray-700 dark:text-gray-200">빠른 선택:</div>
+                  <div className="grid grid-cols-8 gap-2 max-h-24 overflow-y-auto">
+                    {DEFAULT_ICONS.slice(0, 24).map(emoji => (
+                      <button
+                        key={emoji}
+                        type="button"
+                        onClick={() => setNewWidgetData({
+                          ...newWidgetData, 
+                          icon: emoji,
+                          hasCustomIcon: true,
+                          faviconUrl: null
+                        })}
+                        className={`text-xl hover:bg-gray-100 dark:hover:bg-gray-600 p-2 rounded transition-colors ${
+                          newWidgetData.icon === emoji && newWidgetData.hasCustomIcon ? 'bg-blue-100 dark:bg-blue-900' : ''
+                        }`}
+                        title={emoji}
+                      >
+                        {emoji}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                
+                {/* favicon vs 수동 선택 안내 */}
+                <div className="text-xs text-gray-500 dark:text-gray-400 bg-blue-50 dark:bg-blue-900/20 p-2 rounded">
+                  💡 팁: URL을 입력한 후 "Favicon 자동 가져오기" 버튼을 클릭하면 해당 웹사이트의 실제 아이콘을 사용할 수 있습니다.
                 </div>
               </div>
             </>
