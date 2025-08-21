@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react'
 import { Card } from '@/lib/components/ui/card'
 import { Button } from '@/lib/components/ui/button'
 import WeatherWidget from '@/lib/components/widgets/WeatherWidget'
@@ -25,7 +26,6 @@ interface WidgetRendererProps {
   onRemove: (widgetId: string) => void
   onSettingsChange?: (widgetId: string, settings: any) => void
   onChecklistItemChange?: (widgetId: string, itemId: string, completed: boolean) => void
-  currentTime?: Date
 }
 
 export default function WidgetRenderer({
@@ -33,9 +33,22 @@ export default function WidgetRenderer({
   isEditMode,
   onRemove,
   onSettingsChange,
-  onChecklistItemChange,
-  currentTime = new Date()
+  onChecklistItemChange
 }: WidgetRendererProps) {
+  const [currentTime, setCurrentTime] = useState<Date | null>(null)
+  const [isClient, setIsClient] = useState(false)
+
+  // 클라이언트에서만 시간을 설정하여 hydration 문제 해결
+  useEffect(() => {
+    setIsClient(true)
+    setCurrentTime(new Date())
+    
+    const timer = setInterval(() => {
+      setCurrentTime(new Date())
+    }, 1000)
+
+    return () => clearInterval(timer)
+  }, [])
   const baseProps = {
     isEditMode,
     onRemove: () => onRemove(widget.id)
@@ -75,16 +88,29 @@ export default function WidgetRenderer({
         >
           <div className="text-center">
             <Clock className="w-8 h-8 mx-auto mb-2 text-blue-500" />
-            <div className="text-2xl font-bold text-gray-900 dark:text-white">
-              {currentTime.toLocaleTimeString('ko-KR', { 
-                hour: '2-digit', 
-                minute: '2-digit',
-                second: '2-digit'
-              })}
-            </div>
-            <div className="text-sm text-gray-500 dark:text-gray-400">
-              {currentTime.toLocaleDateString('ko-KR')}
-            </div>
+            {isClient && currentTime ? (
+              <>
+                <div className="text-2xl font-bold text-gray-900 dark:text-white">
+                  {currentTime.toLocaleTimeString('ko-KR', { 
+                    hour: '2-digit', 
+                    minute: '2-digit',
+                    second: '2-digit'
+                  })}
+                </div>
+                <div className="text-sm text-gray-500 dark:text-gray-400">
+                  {currentTime.toLocaleDateString('ko-KR')}
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="text-2xl font-bold text-gray-900 dark:text-white">
+                  --:--:--
+                </div>
+                <div className="text-sm text-gray-500 dark:text-gray-400">
+                  ----/--/--
+                </div>
+              </>
+            )}
           </div>
           {isEditMode && (
             <Button

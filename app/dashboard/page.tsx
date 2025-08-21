@@ -85,8 +85,6 @@ export default function DashboardPage() {
   const [userName, setUserName] = useState<string>('')
   const [activeId, setActiveId] = useState<string | null>(null)
   
-  // 시계 위젯용 현재 시간 상태
-  const [currentTime, setCurrentTime] = useState(new Date())
 
   // 배경 옵션
   const backgroundOptions: IBackgroundOption[] = [
@@ -442,14 +440,6 @@ export default function DashboardPage() {
     }
   }, [isAuthenticated, loadDashboard])
 
-  // 시계 업데이트
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setCurrentTime(new Date())
-    }, 1000)
-
-    return () => clearInterval(timer)
-  }, [])
 
   // 키보드 단축키
   useEffect(() => {
@@ -616,7 +606,6 @@ export default function DashboardPage() {
                               onRemove={removeWidget}
                               onSettingsChange={updateWidgetSettings}
                               onChecklistItemChange={updateChecklistItem}
-                              currentTime={currentTime}
                             />
                           </ResizableWidget>
                         </SortableWidget>
@@ -631,7 +620,6 @@ export default function DashboardPage() {
                         widget={widgets.find(w => w.id === activeId)!}
                         isEditMode={isEditMode}
                         onRemove={removeWidget}
-                        currentTime={currentTime}
                       />
                     </div>
                   ) : null}
