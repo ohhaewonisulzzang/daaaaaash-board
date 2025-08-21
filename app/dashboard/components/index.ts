@@ -1,2 +1,6 @@
 export { default as DashboardStats } from './DashboardStats'
 export { default as RecentActivity } from './RecentActivity'
+export { default as AddWidgetModal } from './AddWidgetModal'
+export { default as SettingsModal } from './SettingsModal'
+export { default as WidgetRenderer } from './WidgetRenderer'
+export { default as Sidebar } from './Sidebar'

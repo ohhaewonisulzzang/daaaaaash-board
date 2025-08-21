@@ -14,35 +14,19 @@ import {
 } from '@dnd-kit/core'
 import { SortableContext, rectSortingStrategy } from '@dnd-kit/sortable'
 import { Button } from '@/lib/components/ui/button'
-import { Card } from '@/lib/components/ui/card'
 import { Navbar } from '@/lib/components/ui/navbar'
-import { Modal } from '@/lib/components/ui/modal'
-import { Input } from '@/lib/components/ui/input'
-import { Select } from '@/lib/components/ui/select'
 import { Badge } from '@/lib/components/ui/badge'
-import { Spacer } from '@/lib/components/ui/spacer'
-import { Divider } from '@/lib/components/ui/divider'
-import { ImageUpload } from '@/lib/components/ui/image-upload'
-import { DataManager } from '@/lib/components/dashboard/DataManager'
 import { LoginModal } from '@/lib/components/ui/login-modal'
 import { useAuth } from '@/lib/hooks'
 import { useToast } from '@/lib/hooks/use-toast'
-import { guestStorage } from '@/lib/utils/guestStorage'
 import UserNameEditor from '@/lib/components/profile/UserNameEditor'
 import { ThemeToggle } from '@/lib/components/ui/theme-toggle'
-import WeatherWidget from '@/lib/components/widgets/WeatherWidget'
-import MemoWidget from '@/lib/components/widgets/MemoWidget'
-import SearchWidget from '@/lib/components/widgets/SearchWidget'
-import CalendarWidget from '@/lib/components/widgets/CalendarWidget'
 import ResizableWidget from '@/lib/components/widgets/ResizableWidget'
 import SortableWidget from '@/lib/components/widgets/SortableWidget'
 import { 
-  Plus, Edit, Save, Settings, Grid, Layout, Clock, 
-  Link as LinkIcon, List, LogOut, Cloud, FileText, 
-  Search, Palette, Download, Upload, Moon, Sun, Calendar as CalendarIcon
+  Plus, Edit, Save, Settings, Grid, LogOut
 } from 'lucide-react'
 import { 
-  IDashboard, 
   IWidget, 
   IWidgetSettings,
   ILinkSettings,
@@ -51,18 +35,12 @@ import {
   IMemoSettings,
   ISearchSettings,
   ICalendarSettings,
-  IBackgroundOption,
-  ILayoutSettings
+  IBackgroundOption
 } from '@/types'
-import { normalizeUrl, extractDomain, detectUrlType, getRecommendedIcon } from '@/lib/utils/urlUtils'
-import { getFaviconWithCache, DEFAULT_ICONS } from '@/lib/utils/faviconUtils'
-
-// 기본 위젯 타입 정의 (types/index.ts에서 가져와야 하지만 임시로 여기에 정의)
-interface IChecklistItem {
-  id: string
-  text: string
-  completed: boolean
-}
+import { normalizeUrl, extractDomain, getRecommendedIcon } from '@/lib/utils/urlUtils'
+import { guestStorage } from '@/lib/utils/guestStorage'
+import { useDashboard, useWidgetOperations } from './hooks'
+import { AddWidgetModal, SettingsModal, WidgetRenderer, Sidebar } from './components'
 
 export default function DashboardPage() {
   const { user, logout, isAuthenticated, isLoading, isGuestMode, exitGuestMode } = useAuth()
@@ -70,32 +48,34 @@ export default function DashboardPage() {
   const { toast } = useToast()
   const hasRedirectedRef = useRef(false)
 
-  // 로그인 모달 표시 함수
-  const handleShowLoginModal = () => {
-    setIsLoginModalOpen(true)
-  }
+  // 대시보드 데이터 관리 훅
+  const {
+    dashboard,
+    setDashboard,
+    widgets,
+    setWidgets,
+    isDashboardLoading,
+    loadDashboard
+  } = useDashboard()
 
-  // 로그인 모달에서 로그인 처리
-  const handleLoginFromModal = () => {
-    setIsLoginModalOpen(false)
-    window.location.href = '/'
-  }
-
-  // 로그인 모달에서 회원가입 처리
-  const handleSignUpFromModal = () => {
-    setIsLoginModalOpen(false)
-    window.location.href = '/signup'
-  }
-
-  // 로그인 리다이렉트 처리
-  const handleLoginRedirect = () => {
-    setIsLoginModalOpen(false)
-    window.location.href = '/'
-  }
+  // 위젯 작업 관리 훅
+  const {
+    newWidgetData,
+    setNewWidgetData,
+    faviconLoading,
+    setFaviconLoading,
+    faviconError,
+    setFaviconError,
+    saveWidgetPositions,
+    handleWidgetResize,
+    removeWidget,
+    updateChecklistItem,
+    updateWidgetSettings,
+    updateDashboardBackground,
+    handleLayoutReset
+  } = useWidgetOperations(widgets, setWidgets, dashboard, setDashboard)
   
-  // 상태 관리
-  const [dashboard, setDashboard] = useState<IDashboard | null>(null)
-  const [widgets, setWidgets] = useState<IWidget[]>([])
+  // UI 상태 관리
   const [isEditMode, setIsEditMode] = useState(false)
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
   const [isAddWidgetModalOpen, setIsAddWidgetModalOpen] = useState(false)
@@ -103,18 +83,10 @@ export default function DashboardPage() {
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false)
   const [selectedWidgetType, setSelectedWidgetType] = useState<string>('')
   const [userName, setUserName] = useState<string>('')
-  const [isDashboardLoading, setIsDashboardLoading] = useState(true)
   const [activeId, setActiveId] = useState<string | null>(null)
-
-  // 새 위젯 추가 폼 상태
-  const [newWidgetData, setNewWidgetData] = useState<any>({})
   
   // 시계 위젯용 현재 시간 상태
   const [currentTime, setCurrentTime] = useState(new Date())
-  
-  // favicon 관련 상태
-  const [faviconLoading, setFaviconLoading] = useState(false)
-  const [faviconError, setFaviconError] = useState<string | null>(null)
 
   // 배경 옵션
   const backgroundOptions: IBackgroundOption[] = [
@@ -142,274 +114,24 @@ export default function DashboardPage() {
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: {
-        distance: 8, // 드래그 시작 거리
+        distance: 8,
       },
     })
   )
 
-  // 인증 상태 확인
-  useEffect(() => {
-    if (!isLoading && !isAuthenticated && !hasRedirectedRef.current) {
-      hasRedirectedRef.current = true
-      router.replace('/')
-    }
-  }, [isAuthenticated, isLoading, router])
-
-  // 사용자 정보 로드
-  useEffect(() => {
-    if (isGuestMode) {
-      // 게스트 모드: localStorage에서 사용자명 불러오기
-      const guestUsername = localStorage.getItem('guest_username')
-      setUserName(guestUsername || '게스트')
-    } else if ((user as any)?.profile?.full_name) {
-      setUserName((user as any).profile.full_name)
-    } else if (user?.user_metadata?.full_name) {
-      setUserName(user.user_metadata.full_name)
-    } else if (user?.email) {
-      setUserName(user.email.split('@')[0])
-    }
-  }, [user, isGuestMode])
-
-  // 대시보드 데이터 로드
-  useEffect(() => {
-    if (isAuthenticated) {
-      loadDashboard()
-    }
-  }, [isAuthenticated])
-
-  // 시계 업데이트
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setCurrentTime(new Date())
-    }, 1000)
-
-    return () => clearInterval(timer)
-  }, [])
-
-  // 키보드 단축키
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
-        return
-      }
-      
-      switch (e.key.toLowerCase()) {
-        case 'e':
-          e.preventDefault()
-          setIsEditMode(!isEditMode)
-          break
-        case 'escape':
-          e.preventDefault()
-          setIsEditMode(false)
-          setIsSidebarOpen(false)
-          setIsAddWidgetModalOpen(false)
-          setIsSettingsModalOpen(false)
-          break
-        case 'tab':
-          e.preventDefault()
-          setIsSidebarOpen(!isSidebarOpen)
-          break
-      }
-    }
-
-    window.addEventListener('keydown', handleKeyDown)
-    return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [isEditMode, isSidebarOpen])
-
-  const loadDashboard = async () => {
-    try {
-      if (isGuestMode) {
-        // 게스트 모드: localStorage에서 데이터 로드
-        let guestData = guestStorage.loadData()
-        
-        if (!guestData) {
-          // 게스트 데이터가 없으면 기본 데이터 생성
-          guestData = guestStorage.createDefaultData()
-          guestStorage.saveData(guestData)
-        }
-        
-        // 게스트 데이터를 대시보드 형식으로 변환
-        setDashboard({
-          id: 'guest-dashboard',
-          user_id: 'guest',
-          name: 'Guest Dashboard',
-          background_type: guestData.dashboard.background_type as 'color' | 'gradient' | 'image',
-          background_value: guestData.dashboard.background_value,
-          layout_settings: guestData.dashboard.layout_settings as ILayoutSettings,
-          created_at: guestData.createdAt,
-          updated_at: guestData.createdAt
-        })
-        
-        setWidgets(guestData.widgets.map(w => ({
-          ...w,
-          type: w.type as 'link' | 'checklist' | 'clock' | 'weather' | 'calendar' | 'search' | 'memo',
-          dashboard_id: 'guest-dashboard',
-          created_at: guestData.createdAt,
-          updated_at: guestData.createdAt
-        })))
-      } else {
-        // 일반 모드: API에서 데이터 로드
-        const response = await fetch('/api/dashboard')
-        const result = await response.json()
-        
-        if (result.success) {
-          setDashboard(result.data.dashboard)
-          setWidgets(result.data.widgets)
-        } else {
-          toast({
-            variant: 'destructive',
-            title: '오류',
-            description: result.error || '대시보드를 불러올 수 없습니다.'
-          })
-        }
-      }
-    } catch (error) {
-      toast({
-        variant: 'destructive',
-        title: '오류',
-        description: '대시보드를 불러오는데 실패했습니다.'
-      })
-    } finally {
-      setIsDashboardLoading(false)
-    }
+  // 모달 핸들러 함수들
+  const handleShowLoginModal = () => {
+    setIsLoginModalOpen(true)
   }
 
-  const handleDragStart = (event: DragStartEvent) => {
-    console.log('드래그 시작:', event.active.id)
-    setActiveId(event.active.id as string)
+  const handleLoginFromModal = () => {
+    setIsLoginModalOpen(false)
+    window.location.href = '/'
   }
 
-  const handleDragEnd = (event: DragEndEvent) => {
-    console.log('드래그 종료:', event)
-    setActiveId(null)
-    
-    const { active, over } = event
-    
-    console.log('Active ID:', active.id, 'Over ID:', over?.id)
-    
-    if (over && active.id !== over.id) {
-      const activeWidget = widgets.find(w => w.id === active.id)
-      const overWidget = widgets.find(w => w.id === over.id)
-      
-      console.log('Active Widget:', activeWidget)
-      console.log('Over Widget:', overWidget)
-      
-      if (activeWidget && overWidget) {
-        // 두 위젯의 위치를 간단히 교체
-        const updatedWidgets = widgets.map(widget => {
-          if (widget.id === active.id) {
-            return {
-              ...widget,
-              position_x: overWidget.position_x,
-              position_y: overWidget.position_y
-            }
-          }
-          if (widget.id === over.id) {
-            return {
-              ...widget,
-              position_x: activeWidget.position_x,
-              position_y: activeWidget.position_y
-            }
-          }
-          return widget
-        })
-        
-        console.log('업데이트된 위젯들:', updatedWidgets)
-        setWidgets(updatedWidgets)
-        saveWidgetPositions(updatedWidgets)
-      }
-    } else {
-      console.log('드래그 취소 또는 같은 위치')
-    }
-  }
-
-  const saveWidgetPositions = async (updatedWidgets: IWidget[]) => {
-    if (isGuestMode) {
-      // 게스트 모드: localStorage에 위치 정보 저장
-      const positions = updatedWidgets.map(w => ({
-        id: w.id,
-        position_x: w.position_x,
-        position_y: w.position_y
-      }))
-      guestStorage.updateWidgetPositions(positions)
-    } else {
-      // 일반 모드: API 호출
-      for (const widget of updatedWidgets) {
-        try {
-          await fetch('/api/widgets', {
-            method: 'PATCH',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              widgetId: widget.id,
-              position_x: widget.position_x,
-              position_y: widget.position_y
-            })
-          })
-        } catch (error) {
-          console.error('위젯 위치 저장 실패:', error)
-        }
-      }
-    }
-  }
-
-  const handleWidgetResize = async (widgetId: string, width: number, height: number) => {
-    try {
-      if (isGuestMode) {
-        // 게스트 모드: localStorage에 크기 정보 저장
-        guestStorage.updateWidget(widgetId, { width, height })
-        
-        // 로컬 상태 업데이트
-        setWidgets(widgets.map(widget => 
-          widget.id === widgetId 
-            ? { ...widget, width, height }
-            : widget
-        ))
-        
-        toast({
-          title: '성공',
-          description: '위젯 크기가 변경되었습니다.'
-        })
-      } else {
-        // 일반 모드: API 호출
-        const response = await fetch('/api/widgets', {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            widgetId,
-            width,
-            height
-          })
-        })
-        
-        const result = await response.json()
-        
-        if (result.success) {
-          // 로컬 상태 업데이트
-          setWidgets(widgets.map(widget => 
-            widget.id === widgetId 
-              ? { ...widget, width, height }
-              : widget
-          ))
-          
-          toast({
-            title: '성공',
-            description: '위젯 크기가 변경되었습니다.'
-          })
-        } else {
-          toast({
-            variant: 'destructive',
-            title: '오류',
-            description: result.error || '위젯 크기 변경에 실패했습니다.'
-          })
-        }
-      }
-    } catch (error) {
-      toast({
-        variant: 'destructive',
-        title: '오류',
-        description: '위젯 크기 변경 중 오류가 발생했습니다.'
-      })
-    }
+  const handleSignUpFromModal = () => {
+    setIsLoginModalOpen(false)
+    window.location.href = '/signup'
   }
 
   const handleLogout = async () => {
@@ -425,13 +147,9 @@ export default function DashboardPage() {
     setUserName(newName)
   }
 
-  const toggleEditMode = () => {
-    setIsEditMode(!isEditMode)
-  }
-
-  const toggleSidebar = () => {
-    setIsSidebarOpen(!isSidebarOpen)
-  }
+  // 위젯 관련 함수들
+  const toggleEditMode = () => setIsEditMode(!isEditMode)
+  const toggleSidebar = () => setIsSidebarOpen(!isSidebarOpen)
 
   const openAddWidgetModal = (type: string) => {
     setSelectedWidgetType(type)
@@ -441,6 +159,7 @@ export default function DashboardPage() {
     setIsAddWidgetModalOpen(true)
   }
 
+  // 위젯 추가
   const addWidget = async () => {
     if (!dashboard) return
 
@@ -452,7 +171,6 @@ export default function DashboardPage() {
         const displayDomain = extractDomain(newWidgetData.url || 'https://example.com')
         const recommendedIcon = getRecommendedIcon(newWidgetData.url || 'https://example.com')
         
-        // favicon URL이 있으면 그것을 사용하고, 없으면 선택된 아이콘 또는 추천 아이콘 사용
         const finalIcon = newWidgetData.faviconUrl || newWidgetData.icon || recommendedIcon
         
         settings = {
@@ -517,18 +235,17 @@ export default function DashboardPage() {
     const getMaxCols = () => {
       if (typeof window === 'undefined') return 6
       const width = window.innerWidth
-      if (width < 640) return 1 // sm
-      if (width < 768) return 2 // md
-      if (width < 1024) return 3 // lg
-      if (width < 1280) return 4 // xl
-      return 6 // 2xl 이상
+      if (width < 640) return 1
+      if (width < 768) return 2
+      if (width < 1024) return 3
+      if (width < 1280) return 4
+      return 6
     }
 
-    // 뷰포트 높이에 따른 최대 행 수 계산 (네비게이션 바와 패딩 제외)
     const getMaxRows = () => {
       if (typeof window === 'undefined') return 4
-      const availableHeight = window.innerHeight - 64 - 48 // navbar(64px) + padding(48px)
-      const estimatedRowHeight = 200 // 위젯 기본 높이 + gap
+      const availableHeight = window.innerHeight - 64 - 48
+      const estimatedRowHeight = 200
       return Math.floor(availableHeight / estimatedRowHeight)
     }
 
@@ -536,7 +253,6 @@ export default function DashboardPage() {
     const maxRows = getMaxRows()
     const maxWidgets = maxCols * maxRows
 
-    // 이미 최대 위젯 수에 도달했는지 확인
     if (widgets.length >= maxWidgets) {
       toast({
         variant: 'destructive',
@@ -556,7 +272,6 @@ export default function DashboardPage() {
           }
         }
       }
-      // 빈 위치가 없으면 첫 번째 위치에 배치
       return { x: 0, y: 0 }
     }
 
@@ -579,7 +294,6 @@ export default function DashboardPage() {
 
     try {
       if (isGuestMode) {
-        // 게스트 모드: localStorage에 저장
         const widgetId = guestStorage.addWidget({
           type: selectedWidgetType,
           position_x: widgetData.position_x,
@@ -609,7 +323,6 @@ export default function DashboardPage() {
           description: '위젯이 추가되었습니다.'
         })
       } else {
-        // 일반 모드: API 호출
         const response = await fetch('/api/widgets', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -642,100 +355,7 @@ export default function DashboardPage() {
     }
   }
 
-  const removeWidget = async (widgetId: string) => {
-    try {
-      if (isGuestMode) {
-        // 게스트 모드: localStorage에서 삭제
-        guestStorage.deleteWidget(widgetId)
-        setWidgets(widgets.filter(w => w.id !== widgetId))
-        toast({
-          title: '성공',
-          description: '위젯이 삭제되었습니다.'
-        })
-      } else {
-        // 일반 모드: API 호출
-        const response = await fetch('/api/widgets', {
-          method: 'DELETE',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ widgetId })
-        })
-        
-        const result = await response.json()
-        
-        if (result.success) {
-          setWidgets(widgets.filter(w => w.id !== widgetId))
-          toast({
-            title: '성공',
-            description: '위젯이 삭제되었습니다.'
-          })
-        } else {
-          toast({
-            variant: 'destructive',
-            title: '오류',
-            description: result.error || '위젯 삭제에 실패했습니다.'
-          })
-        }
-      }
-    } catch (error) {
-      toast({
-        variant: 'destructive',
-        title: '오류',
-        description: '위젯 삭제 중 오류가 발생했습니다.'
-      })
-    }
-  }
-
-  const updateDashboardBackground = async (background: IBackgroundOption) => {
-    if (!dashboard) return
-
-    try {
-      if (isGuestMode) {
-        // 게스트 모드: localStorage에 저장
-        guestStorage.updateDashboard({
-          background_type: background.type,
-          background_value: background.value
-        })
-        
-        setDashboard({
-          ...dashboard,
-          background_type: background.type,
-          background_value: background.value
-        })
-        
-        toast({
-          title: '성공',
-          description: '배경이 변경되었습니다.'
-        })
-      } else {
-        // 일반 모드: API 호출
-        const response = await fetch('/api/dashboard', {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            background_type: background.type,
-            background_value: background.value
-          })
-        })
-        
-        const result = await response.json()
-        
-        if (result.success) {
-          setDashboard(result.data)
-          toast({
-            title: '성공',
-            description: '배경이 변경되었습니다.'
-          })
-        }
-      }
-    } catch (error) {
-      toast({
-        variant: 'destructive',
-        title: '오류',
-        description: '배경 변경에 실패했습니다.'
-      })
-    }
-  }
-
+  // 이미지 업로드 핸들러
   const handleImageUpload = async (imageUrl: string) => {
     const background: IBackgroundOption = {
       type: 'image',
@@ -754,781 +374,112 @@ export default function DashboardPage() {
     await updateDashboardBackground(background)
   }
 
-  const handleLayoutReset = async () => {
-    if (!confirm('모든 위젯의 위치를 초기화하시겠습니까?')) {
-      return
-    }
-
-    try {
-      // 위젯들을 그리드 순서대로 재배치
-      const updatedWidgets = widgets.map((widget, index) => ({
-        ...widget,
-        position_x: index % 4,
-        position_y: Math.floor(index / 4)
-      }))
-
-      setWidgets(updatedWidgets)
-      await saveWidgetPositions(updatedWidgets)
-
-      toast({
-        title: '성공',
-        description: '레이아웃이 초기화되었습니다.'
-      })
-    } catch (error) {
-      toast({
-        variant: 'destructive',
-        title: '오류',
-        description: '레이아웃 초기화에 실패했습니다.'
-      })
-    }
+  // DnD 핸들러
+  const handleDragStart = (event: DragStartEvent) => {
+    setActiveId(event.active.id as string)
   }
 
-  const updateChecklistItem = async (widgetId: string, itemId: string, completed: boolean) => {
-    try {
-      // 로컬 상태 업데이트
-      setWidgets(widgets.map(widget => {
-        if (widget.id === widgetId && widget.type === 'checklist') {
-          const settings = widget.settings as IChecklistSettings
-          const updatedItems = settings.items.map((item: IChecklistItem) =>
-            item.id === itemId ? { ...item, completed } : item
-          )
-          return {
-            ...widget,
-            settings: { ...settings, items: updatedItems }
+  const handleDragEnd = (event: DragEndEvent) => {
+    setActiveId(null)
+    
+    const { active, over } = event
+    
+    if (over && active.id !== over.id) {
+      const activeWidget = widgets.find(w => w.id === active.id)
+      const overWidget = widgets.find(w => w.id === over.id)
+      
+      if (activeWidget && overWidget) {
+        const updatedWidgets = widgets.map(widget => {
+          if (widget.id === active.id) {
+            return {
+              ...widget,
+              position_x: overWidget.position_x,
+              position_y: overWidget.position_y
+            }
           }
-        }
-        return widget
-      }))
-
-      if (isGuestMode) {
-        // 게스트 모드: localStorage에 저장
-        const widget = widgets.find(w => w.id === widgetId)
-        if (widget && widget.type === 'checklist') {
-          const settings = widget.settings as IChecklistSettings
-          const updatedItems = settings.items.map((item: IChecklistItem) =>
-            item.id === itemId ? { ...item, completed } : item
-          )
-          guestStorage.updateWidget(widgetId, { 
-            settings: { ...settings, items: updatedItems }
-          })
-        }
-      } else {
-        // 일반 모드: API 호출
-        const widget = widgets.find(w => w.id === widgetId)
-        if (widget && widget.type === 'checklist') {
-          const settings = widget.settings as IChecklistSettings
-          const updatedItems = settings.items.map((item: IChecklistItem) =>
-            item.id === itemId ? { ...item, completed } : item
-          )
-          
-          await fetch('/api/widgets', {
-            method: 'PATCH',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              widgetId,
-              settings: { ...settings, items: updatedItems }
-            })
-          })
-        }
-      }
-    } catch (error) {
-      console.error('체크리스트 업데이트 실패:', error)
-      toast({
-        variant: 'destructive',
-        title: '오류',
-        description: '체크리스트 업데이트에 실패했습니다.'
-      })
-    }
-  }
-
-  const updateWidgetSettings = async (widgetId: string, newSettings: IWidgetSettings) => {
-    try {
-      // 로컬 상태 업데이트
-      setWidgets(widgets.map(widget =>
-        widget.id === widgetId 
-          ? { ...widget, settings: newSettings }
-          : widget
-      ))
-
-      if (isGuestMode) {
-        // 게스트 모드: localStorage에 저장
-        guestStorage.updateWidget(widgetId, { settings: newSettings })
-      } else {
-        // 일반 모드: API 호출
-        await fetch('/api/widgets', {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            widgetId,
-            settings: newSettings
-          })
+          if (widget.id === over.id) {
+            return {
+              ...widget,
+              position_x: activeWidget.position_x,
+              position_y: activeWidget.position_y
+            }
+          }
+          return widget
         })
+        
+        setWidgets(updatedWidgets)
+        saveWidgetPositions(updatedWidgets)
       }
-    } catch (error) {
-      console.error('위젯 설정 업데이트 실패:', error)
-      toast({
-        variant: 'destructive',
-        title: '오류',
-        description: '위젯 설정 업데이트에 실패했습니다.'
-      })
     }
   }
 
-  // favicon 자동 가져오기 함수
-  const fetchFaviconForUrl = async (url: string) => {
-    if (!url || url.trim() === '') return
+  // 인증 상태 확인
+  useEffect(() => {
+    if (!isLoading && !isAuthenticated && !hasRedirectedRef.current) {
+      hasRedirectedRef.current = true
+      router.replace('/')
+    }
+  }, [isAuthenticated, isLoading, router])
 
-    setFaviconLoading(true)
-    setFaviconError(null)
+  // 사용자 정보 로드
+  useEffect(() => {
+    if (isGuestMode) {
+      const guestUsername = localStorage.getItem('guest_username')
+      setUserName(guestUsername || '게스트')
+    } else if ((user as any)?.profile?.full_name) {
+      setUserName((user as any).profile.full_name)
+    } else if (user?.user_metadata?.full_name) {
+      setUserName(user.user_metadata.full_name)
+    } else if (user?.email) {
+      setUserName(user.email.split('@')[0])
+    }
+  }, [user, isGuestMode])
 
-    try {
-      const result = await getFaviconWithCache(url)
-      
-      if (result.success && result.faviconUrl) {
-        // 성공적으로 favicon을 가져온 경우
-        setNewWidgetData((prev: any) => ({
-          ...prev,
-          icon: result.faviconUrl,
-          faviconUrl: result.faviconUrl,
-          hasCustomIcon: false
-        }))
-        
-        toast({
-          title: '성공',
-          description: 'Favicon을 자동으로 가져왔습니다.'
-        })
-      } else {
-        // favicon을 가져오지 못한 경우
-        setFaviconError(result.error || 'Favicon을 찾을 수 없습니다')
-        
-        // 기본 추천 아이콘 사용
-        const recommendedIcon = getRecommendedIcon(url)
-        setNewWidgetData((prev: any) => ({
-          ...prev,
-          icon: prev.icon || recommendedIcon,
-          hasCustomIcon: true
-        }))
+  // 대시보드 데이터 로드
+  useEffect(() => {
+    if (isAuthenticated) {
+      loadDashboard()
+    }
+  }, [isAuthenticated, loadDashboard])
+
+  // 시계 업데이트
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentTime(new Date())
+    }, 1000)
+
+    return () => clearInterval(timer)
+  }, [])
+
+  // 키보드 단축키
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
+        return
       }
-    } catch (error) {
-      setFaviconError('Favicon 가져오기 중 오류가 발생했습니다')
       
-      // 기본 추천 아이콘 사용
-      const recommendedIcon = getRecommendedIcon(url)
-      setNewWidgetData((prev: any) => ({
-        ...prev,
-        icon: prev.icon || recommendedIcon,
-        hasCustomIcon: true
-      }))
-    } finally {
-      setFaviconLoading(false)
+      switch (e.key.toLowerCase()) {
+        case 'e':
+          e.preventDefault()
+          setIsEditMode(!isEditMode)
+          break
+        case 'escape':
+          e.preventDefault()
+          setIsEditMode(false)
+          setIsSidebarOpen(false)
+          setIsAddWidgetModalOpen(false)
+          setIsSettingsModalOpen(false)
+          break
+        case 'tab':
+          e.preventDefault()
+          setIsSidebarOpen(!isSidebarOpen)
+          break
+      }
     }
-  }
 
-  const renderWidget = (widget: IWidget) => {
-    const baseProps = {
-      isEditMode,
-      onRemove: () => removeWidget(widget.id)
-    }
-
-    switch (widget.type) {
-      case 'weather':
-        return <WeatherWidget key={widget.id} {...baseProps} settings={widget.settings as IWeatherSettings} />
-      case 'memo':
-        return (
-          <MemoWidget 
-            key={widget.id}
-            {...baseProps} 
-            settings={widget.settings as IMemoSettings}
-            onSettingsChange={(newSettings) => updateWidgetSettings(widget.id, newSettings)}
-          />
-        )
-      case 'search':
-        return <SearchWidget key={widget.id} {...baseProps} settings={widget.settings as ISearchSettings} />
-      case 'calendar':
-        return <CalendarWidget key={widget.id} {...baseProps} settings={widget.settings as ICalendarSettings} />
-      case 'clock':
-        return (
-          <Card 
-            key={widget.id}
-            className={`macos-widget p-6 relative animate-macos-fade-in ${isEditMode ? 'border-2 border-dashed border-blue-300 animate-macos-pulse' : ''}`}
-            onMouseDown={(e: React.MouseEvent<HTMLDivElement>) => {
-              // 편집 모드에서 위젯 내부 클릭 시 드래그 이벤트 차단
-              if (isEditMode) {
-                e.stopPropagation()
-              }
-            }}
-          >
-            <div className="text-center">
-              <Clock className="w-8 h-8 mx-auto mb-2 text-blue-500" />
-              <div className="text-2xl font-bold text-gray-900 dark:text-white">
-                {currentTime.toLocaleTimeString('ko-KR', { 
-                  hour: '2-digit', 
-                  minute: '2-digit',
-                  second: '2-digit'
-                })}
-              </div>
-              <div className="text-sm text-gray-500 dark:text-gray-400">
-                {currentTime.toLocaleDateString('ko-KR')}
-              </div>
-            </div>
-            {isEditMode && (
-              <Button
-                variant="destructive"
-                size="sm"
-                className="absolute top-2 right-2"
-                onClick={() => removeWidget(widget.id)}
-              >
-                ×
-              </Button>
-            )}
-          </Card>
-        )
-      case 'link':
-        const linkSettings = widget.settings as ILinkSettings
-        
-        const normalizedUrl = normalizeUrl(linkSettings.url)
-        const displayUrl = extractDomain(linkSettings.url)
-        const urlType = detectUrlType(linkSettings.url)
-        const recommendedIcon = getRecommendedIcon(linkSettings.url)
-        
-        return (
-          <Card 
-            key={widget.id}
-            className={`macos-widget bg-white dark:bg-white p-6 relative animate-macos-fade-in ${isEditMode ? 'border-2 border-dashed border-blue-300 animate-macos-pulse' : ''}`}
-            onMouseDown={(e: React.MouseEvent<HTMLDivElement>) => {
-              // 편집 모드에서 위젯 내부 클릭 시 드래그 이벤트 차단
-              if (isEditMode) {
-                e.stopPropagation()
-              }
-            }}
-          >
-            <a 
-              href={normalizedUrl} 
-              target={urlType === 'local' || urlType === 'file' ? '_self' : '_blank'}
-              rel="noopener noreferrer"
-              className="flex items-center space-x-4 hover:bg-gray-50 dark:hover:bg-gray-100 rounded-lg p-3 transition-all duration-200 group"
-              onClick={(e: React.MouseEvent<HTMLAnchorElement>) => {
-                // 검색인 경우 새 탭에서 열기
-                if (urlType === 'search') {
-                  e.preventDefault()
-                  window.open(normalizedUrl, '_blank', 'noopener,noreferrer')
-                }
-              }}
-            >
-              <div className="flex-shrink-0">
-                {/* favicon URL인지 확인 (http로 시작하는 경우) */}
-                {linkSettings.icon && linkSettings.icon.startsWith('http') ? (
-                  <div className="w-12 h-12 rounded-xl bg-white dark:bg-gray-800 flex items-center justify-center group-hover:scale-110 transition-transform duration-200 border border-gray-200 dark:border-gray-700">
-                    <img 
-                      src={linkSettings.icon} 
-                      alt="favicon" 
-                      className="w-8 h-8 rounded"
-                      onError={(e: React.SyntheticEvent<HTMLImageElement>) => {
-                        // favicon 로드 실패 시 기본 아이콘으로 대체
-                        e.currentTarget.style.display = 'none'
-                        const fallbackDiv = document.createElement('div')
-                        fallbackDiv.className = 'text-2xl'
-                        fallbackDiv.textContent = recommendedIcon
-                        e.currentTarget.parentNode?.appendChild(fallbackDiv)
-                      }}
-                    />
-                  </div>
-                ) : linkSettings.icon && linkSettings.icon !== '🔗' ? (
-                  <div className="text-3xl group-hover:scale-110 transition-transform duration-200">
-                    {linkSettings.icon}
-                  </div>
-                ) : (
-                  <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500 to-purple-600 dark:from-blue-600 dark:to-purple-700 flex items-center justify-center group-hover:scale-110 transition-transform duration-200">
-                    <span className="text-2xl">{recommendedIcon}</span>
-                  </div>
-                )}
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="font-semibold text-gray-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors duration-200 truncate">
-                  {linkSettings.title}
-                </div>
-                <div className="text-sm text-gray-500 dark:text-gray-400 group-hover:text-gray-600 dark:group-hover:text-gray-300 transition-colors duration-200 truncate">
-                  {displayUrl}
-                </div>
-                {urlType !== 'web' && (
-                  <div className="text-xs text-blue-600 dark:text-blue-400 font-medium mt-1">
-                    {urlType === 'email' && '이메일'}
-                    {urlType === 'phone' && '전화번호'}
-                    {urlType === 'file' && '파일'}
-                    {urlType === 'local' && '로컬'}
-                    {urlType === 'search' && '검색'}
-                  </div>
-                )}
-              </div>
-            </a>
-            {isEditMode && (
-              <Button
-                variant="destructive"
-                size="sm"
-                className="absolute top-2 right-2 opacity-80 hover:opacity-100"
-                onClick={() => removeWidget(widget.id)}
-              >
-                ×
-              </Button>
-            )}
-          </Card>
-        )
-      case 'checklist':
-        const checklistSettings = widget.settings as IChecklistSettings
-        return (
-          <Card 
-            key={widget.id}
-            className={`macos-widget p-6 relative animate-macos-fade-in ${isEditMode ? 'border-2 border-dashed border-blue-300 animate-macos-pulse' : ''}`}
-            onMouseDown={(e: React.MouseEvent<HTMLDivElement>) => {
-              // 편집 모드에서 위젯 내부 클릭 시 드래그 이벤트 차단
-              if (isEditMode) {
-                e.stopPropagation()
-              }
-            }}
-          >
-            <div className="flex items-center space-x-2 mb-4">
-              <List className="w-5 h-5 text-blue-500" />
-              <h3 className="font-semibold text-gray-900 dark:text-white">{checklistSettings.title}</h3>
-            </div>
-            <div className="space-y-2 max-h-32 overflow-y-auto">
-              {checklistSettings.items.map((item: IChecklistItem) => (
-                <div key={item.id} className="flex items-center space-x-2">
-                  <input
-                    type="checkbox"
-                    checked={item.completed}
-                    onChange={() => updateChecklistItem(widget.id, item.id, !item.completed)}
-                    className="rounded"
-                  />
-                  <span className={item.completed ? 'line-through text-gray-500 dark:text-gray-400' : 'text-gray-900 dark:text-white'}>
-                    {item.text}
-                  </span>
-                </div>
-              ))}
-            </div>
-            {isEditMode && (
-              <Button
-                variant="destructive"
-                size="sm"
-                className="absolute top-2 right-2"
-                onClick={() => removeWidget(widget.id)}
-              >
-                ×
-              </Button>
-            )}
-          </Card>
-        )
-      default:
-        return null
-    }
-  }
-
-  const renderAddWidgetModal = () => {
-    return (
-      <Modal
-        isOpen={isAddWidgetModalOpen}
-        onClose={() => setIsAddWidgetModalOpen(false)}
-        title="새 위젯 추가"
-      >
-        <div className="space-y-4">
-          {selectedWidgetType === 'link' && (
-            <>
-              <div>
-                <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-200">제목</label>
-                <Input
-                  value={newWidgetData.title || ''}
-                  onChange={(e) => setNewWidgetData({...newWidgetData, title: e.target.value})}
-                  placeholder="링크 제목을 입력하세요"
-                  className="form-input border-2 border-black bg-white text-black"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-200">URL</label>
-                <div className="space-y-2">
-                  <Input
-                    value={newWidgetData.url || ''}
-                    onChange={(e) => {
-                      const url = e.target.value
-                      setNewWidgetData({...newWidgetData, url})
-                      
-                      // URL이 입력되면 자동으로 제목 추천
-                      if (url && !newWidgetData.title) {
-                        const domain = extractDomain(url)
-                        setNewWidgetData((prev: any) => ({
-                          ...prev,
-                          url,
-                          title: prev.title || domain || '새 링크'
-                        }))
-                      }
-                    }}
-                    placeholder="다양한 형태의 URL을 입력하세요"
-                    className="form-input border-2 border-black bg-white text-black"
-                  />
-                  
-                  {/* Favicon 가져오기 버튼 */}
-                  {newWidgetData.url && (
-                    <div className="flex items-center space-x-2">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() => fetchFaviconForUrl(newWidgetData.url)}
-                        disabled={faviconLoading}
-                        className="macos-button-secondary"
-                      >
-                        {faviconLoading ? (
-                          <>
-                            <div className="animate-spin w-3 h-3 border border-current border-t-transparent rounded-full mr-1" />
-                            Favicon 가져오는 중...
-                          </>
-                        ) : (
-                          <>
-                            🔄 Favicon 자동 가져오기
-                          </>
-                        )}
-                      </Button>
-                      
-                      {faviconError && (
-                        <div className="text-xs text-red-500">
-                          {faviconError}
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-                <div className="mt-2 text-xs text-gray-500 dark:text-gray-400">
-                  <div className="font-medium mb-1">지원되는 URL 형태:</div>
-                  <div className="grid grid-cols-2 gap-1 text-xs">
-                    <span>• https://example.com</span>
-                    <span>• example.com</span>
-                    <span>• localhost:3000</span>
-                    <span>• 192.168.1.1</span>
-                    <span>• mailto:test@email.com</span>
-                    <span>• tel:010-1234-5678</span>
-                    <span>• file:///path/to/file</span>
-                    <span>• 검색어 (구글 검색)</span>
-                  </div>
-                </div>
-                {newWidgetData.url && (
-                  <div className="mt-3 p-3 bg-gray-50 dark:bg-gray-700 rounded-lg border">
-                    <div className="text-xs font-medium text-gray-600 dark:text-gray-300 mb-2">미리보기:</div>
-                    <div className="flex items-center space-x-3">
-                      <div className="text-2xl">
-                        {newWidgetData.icon || getRecommendedIcon(newWidgetData.url)}
-                      </div>
-                      <div>
-                        <div className="font-medium text-gray-900 dark:text-white text-sm">
-                          {newWidgetData.title || extractDomain(newWidgetData.url)}
-                        </div>
-                        <div className="text-xs text-gray-500 dark:text-gray-400">
-                          {extractDomain(newWidgetData.url)}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-200">아이콘</label>
-                
-                {/* 현재 아이콘 미리보기 */}
-                {newWidgetData.icon && (
-                  <div className="mb-3 p-3 bg-gray-50 dark:bg-gray-700 rounded-lg border">
-                    <div className="text-xs font-medium text-gray-600 dark:text-gray-300 mb-2">현재 아이콘:</div>
-                    <div className="flex items-center space-x-3">
-                      <div className="text-3xl">
-                        {newWidgetData.faviconUrl ? (
-                          <img 
-                            src={newWidgetData.faviconUrl} 
-                            alt="favicon" 
-                            className="w-8 h-8 rounded"
-                            onError={(e: React.SyntheticEvent<HTMLImageElement>) => {
-                              // favicon 로드 실패 시 기본 아이콘으로 변경
-                              e.currentTarget.style.display = 'none'
-                              setNewWidgetData((prev: any) => ({
-                                ...prev,
-                                icon: getRecommendedIcon(prev.url || ''),
-                                faviconUrl: null,
-                                hasCustomIcon: true
-                              }))
-                            }}
-                          />
-                        ) : (
-                          newWidgetData.icon
-                        )}
-                      </div>
-                      <div>
-                        <div className="text-sm font-medium text-gray-900 dark:text-white">
-                          {newWidgetData.faviconUrl ? 'Favicon (자동)' : '이모지 아이콘'}
-                        </div>
-                        <div className="text-xs text-gray-500 dark:text-gray-400">
-                          {newWidgetData.faviconUrl ? '웹사이트에서 자동으로 가져온 아이콘' : '수동으로 선택한 아이콘'}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
-                
-                {/* 수동 아이콘 입력 */}
-                <div className="flex space-x-2 mb-3">
-                  <Input
-                    value={newWidgetData.hasCustomIcon ? newWidgetData.icon || '' : ''}
-                    onChange={(e) => setNewWidgetData({
-                      ...newWidgetData, 
-                      icon: e.target.value,
-                      hasCustomIcon: true,
-                      faviconUrl: null
-                    })}
-                    placeholder="🔗 또는 이모지를 직접 입력"
-                    className="form-input flex-1 border-2 border-black bg-white text-black"
-                  />
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => {
-                      if (newWidgetData.url) {
-                        const recommendedIcon = getRecommendedIcon(newWidgetData.url)
-                        setNewWidgetData({
-                          ...newWidgetData, 
-                          icon: recommendedIcon,
-                          hasCustomIcon: true,
-                          faviconUrl: null
-                        })
-                      }
-                    }}
-                    className="macos-button-secondary px-3"
-                  >
-                    추천
-                  </Button>
-                </div>
-                
-                {/* 기본 아이콘 선택 */}
-                <div className="mb-3">
-                  <div className="text-sm font-medium mb-2 text-gray-700 dark:text-gray-200">빠른 선택:</div>
-                  <div className="grid grid-cols-8 gap-2 max-h-24 overflow-y-auto">
-                    {DEFAULT_ICONS.slice(0, 24).map(emoji => (
-                      <button
-                        key={emoji}
-                        type="button"
-                        onClick={() => setNewWidgetData({
-                          ...newWidgetData, 
-                          icon: emoji,
-                          hasCustomIcon: true,
-                          faviconUrl: null
-                        })}
-                        className={`text-xl hover:bg-gray-100 dark:hover:bg-gray-600 p-2 rounded transition-colors ${
-                          newWidgetData.icon === emoji && newWidgetData.hasCustomIcon ? 'bg-blue-100 dark:bg-blue-900' : ''
-                        }`}
-                        title={emoji}
-                      >
-                        {emoji}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-                
-                {/* favicon vs 수동 선택 안내 */}
-                <div className="text-xs text-gray-500 dark:text-gray-400 bg-blue-50 dark:bg-blue-900/20 p-2 rounded">
-                  💡 팁: URL을 입력한 후 "Favicon 자동 가져오기" 버튼을 클릭하면 해당 웹사이트의 실제 아이콘을 사용할 수 있습니다.
-                </div>
-              </div>
-            </>
-          )}
-
-          {selectedWidgetType === 'checklist' && (
-            <>
-              <div>
-                <label className="block text-sm font-medium mb-1">제목</label>
-                <Input
-                  value={newWidgetData.title || ''}
-                  onChange={(e) => setNewWidgetData({...newWidgetData, title: e.target.value})}
-                  placeholder="체크리스트 제목을 입력하세요"
-                  className="border-2 border-black bg-white text-black"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">항목들 (각 줄마다 하나씩)</label>
-                <textarea
-                  className="w-full p-2 border-2 border-black bg-white text-black rounded-md"
-                  rows={4}
-                  value={newWidgetData.itemsText || ''}
-                  onChange={(e) => {
-                    const itemsText = e.target.value
-                    const items = itemsText.split('\n').filter(item => item.trim()).map((text, index) => ({
-                      id: (index + 1).toString(),
-                      text: text.trim(),
-                      completed: false
-                    }))
-                    setNewWidgetData({...newWidgetData, itemsText, items})
-                  }}
-                  placeholder="할 일 1&#10;할 일 2&#10;할 일 3"
-                />
-              </div>
-            </>
-          )}
-
-          {selectedWidgetType === 'weather' && (
-            <>
-              <div>
-                <label className="block text-sm font-medium mb-1">도시</label>
-                <Input
-                  value={newWidgetData.city || 'Seoul'}
-                  onChange={(e) => setNewWidgetData({...newWidgetData, city: e.target.value})}
-                  placeholder="Seoul"
-                  className="border-2 border-black bg-white text-black"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">온도 단위</label>
-                <Select
-                  value={newWidgetData.unit || 'metric'}
-                  onChange={(value) => setNewWidgetData({...newWidgetData, unit: value})}
-                  options={[
-                    { value: 'metric', label: '섭씨 (°C)' },
-                    { value: 'imperial', label: '화씨 (°F)' },
-                    { value: 'kelvin', label: '켈빈 (K)' }
-                  ]}
-                />
-              </div>
-            </>
-          )}
-
-          {selectedWidgetType === 'memo' && (
-            <>
-              <div>
-                <label className="block text-sm font-medium mb-1">제목</label>
-                <Input
-                  value={newWidgetData.title || ''}
-                  onChange={(e) => setNewWidgetData({...newWidgetData, title: e.target.value})}
-                  placeholder="메모 제목을 입력하세요"
-                  className="border-2 border-black bg-white text-black"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">내용</label>
-                <textarea
-                  className="w-full p-2 border-2 border-black bg-white text-black rounded-md"
-                  rows={4}
-                  value={newWidgetData.content || ''}
-                  onChange={(e) => setNewWidgetData({...newWidgetData, content: e.target.value})}
-                  placeholder="메모 내용을 입력하세요"
-                />
-              </div>
-            </>
-          )}
-
-          <div className="flex justify-end space-x-2 pt-4">
-            <Button variant="outline" onClick={() => setIsAddWidgetModalOpen(false)} className="macos-button-secondary">
-              취소
-            </Button>
-            <Button onClick={addWidget} className="macos-button">
-              추가
-            </Button>
-          </div>
-        </div>
-      </Modal>
-    )
-  }
-
-  const renderSettingsModal = () => {
-    return (
-      <Modal
-        isOpen={isSettingsModalOpen}
-        onClose={() => setIsSettingsModalOpen(false)}
-        title="대시보드 설정"
-      >
-        <div className="space-y-6 max-h-96 overflow-y-auto custom-scrollbar pr-2">
-          {/* 배경 설정 */}
-          <div>
-            <h3 className="text-lg font-semibold mb-3">배경 설정</h3>
-            
-            {/* 이미지 업로드 섹션 */}
-            <div className="mb-4">
-              <h4 className="text-md font-medium mb-2">사용자 정의 이미지</h4>
-              <ImageUpload
-                onUpload={handleImageUpload}
-                currentImage={
-                  dashboard?.background_type === 'image' 
-                    ? dashboard.background_value?.replace(/^url\(|\)$/g, '').replace(/['"]/g, '')
-                    : undefined
-                }
-                onRemove={handleImageRemove}
-                className="mb-3"
-                isGuestMode={isGuestMode}
-                onShowLoginModal={handleShowLoginModal}
-              />
-            </div>
-
-            {/* 프리셋 배경들 */}
-            <div>
-              <h4 className="text-md font-medium mb-2">프리셋 배경</h4>
-              <div className="max-h-80 overflow-y-auto pr-2 custom-scrollbar">
-                <div className="grid grid-cols-2 gap-3">
-                  {backgroundOptions.map((option, index) => (
-                    <div
-                      key={index}
-                      className="cursor-pointer border-2 rounded-lg p-3 hover:border-blue-300 transition-colors"
-                      style={{
-                        background: option.value,
-                        borderColor: dashboard?.background_value === option.value ? '#3b82f6' : '#e5e7eb'
-                      }}
-                      onClick={() => updateDashboardBackground(option)}
-                    >
-                      <div className="h-16 rounded mb-2"></div>
-                      <p className="text-sm font-medium text-center text-gray-700">
-                        {option.name}
-                      </p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* 레이아웃 설정 */}
-          <div>
-            <h3 className="text-lg font-semibold mb-3">레이아웃 설정</h3>
-            <div className="space-y-3">
-              <div>
-                <label className="block text-sm font-medium mb-1">그리드 열 수</label>
-                <Select
-                  value={dashboard?.layout_settings?.gridCols?.toString() || '4'}
-                  onChange={(value) => {
-                    // TODO: 레이아웃 설정 업데이트
-                  }}
-                  options={[
-                    { value: '3', label: '3열' },
-                    { value: '4', label: '4열' },
-                    { value: '5', label: '5열' },
-                    { value: '6', label: '6열' }
-                  ]}
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* 데이터 관리 섹션 */}
-          <DataManager 
-            onImportSuccess={() => {
-              loadDashboard()
-              setIsSettingsModalOpen(false)
-              toast({
-                title: '성공',
-                description: '페이지를 새로고침하여 변경사항을 확인하세요.'
-              })
-            }}
-            isGuestMode={isGuestMode}
-            onShowLoginModal={handleShowLoginModal}
-          />
-
-          <div className="flex justify-end space-x-2 pt-4">
-            <Button variant="outline" onClick={() => setIsSettingsModalOpen(false)}>
-              닫기
-            </Button>
-          </div>
-        </div>
-      </Modal>
-    )
-  }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [isEditMode, isSidebarOpen])
 
   // 인증되지 않은 사용자는 렌더링하지 않음
   if (!isAuthenticated || isDashboardLoading) {
@@ -1547,7 +498,7 @@ export default function DashboardPage() {
 
   return (
     <div className="h-screen overflow-hidden" style={backgroundStyle}>
-      {/* macOS 스타일 상단 네비게이션 */}
+      {/* 상단 네비게이션 */}
       <Navbar className="glass-effect border-b border-white/20 dark:border-gray-800/40">
         <div className="flex items-center justify-between w-full px-4">
           <div className="flex items-center space-x-2 sm:space-x-4">
@@ -1616,159 +567,13 @@ export default function DashboardPage() {
       </Navbar>
 
       <div className="flex h-[calc(100vh-4rem)]">
-        {/* macOS 스타일 사이드바 */}
-        <div className={`fixed left-0 top-16 h-[calc(100vh-4rem)] glass-effect border-r border-white/20 dark:border-gray-800/40 transition-all duration-500 cubic-bezier(0.25, 0.46, 0.45, 0.94) z-10 ${
-          isSidebarOpen ? 'translate-x-0' : '-translate-x-full'
-        } w-80 lg:w-80 md:w-72 sm:w-64 overflow-y-auto custom-scrollbar animate-macos-fade-in`}>
-          <div className="p-6">
-            <h2 className="text-lg font-semibold mb-4 text-gray-900 dark:text-white">위젯 추가</h2>
-            
-            <div className="space-y-3">
-              <Card 
-                className="p-4 cursor-pointer macos-widget animate-macos-slide-in"
-                onClick={() => openAddWidgetModal('search')}
-              >
-                <div className="flex items-center space-x-3">
-                  <div className="p-2 rounded-lg bg-green-100 dark:bg-green-900/30">
-                    <Search className="w-5 h-5 text-green-600 dark:text-green-400" />
-                  </div>
-                  <div>
-                    <div className="font-medium text-gray-900 dark:text-white">검색 위젯</div>
-                    <div className="text-sm text-gray-500 dark:text-gray-400">
-                      통합 검색 (Google, Naver 등)
-                    </div>
-                  </div>
-                </div>
-              </Card>
-
-              <Card 
-                className="p-4 cursor-pointer macos-widget animate-macos-slide-in"
-                onClick={() => openAddWidgetModal('weather')}
-              >
-                <div className="flex items-center space-x-3">
-                  <div className="p-2 rounded-lg bg-blue-100 dark:bg-blue-900/30">
-                    <Cloud className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-                  </div>
-                  <div>
-                    <div className="font-medium text-gray-900 dark:text-white">날씨 위젯</div>
-                    <div className="text-sm text-gray-500 dark:text-gray-400">
-                      현재 날씨 및 예보 정보
-                    </div>
-                  </div>
-                </div>
-              </Card>
-
-              <Card 
-                className="p-4 cursor-pointer macos-widget animate-macos-slide-in"
-                onClick={() => openAddWidgetModal('memo')}
-              >
-                <div className="flex items-center space-x-3">
-                  <div className="p-2 rounded-lg bg-orange-100 dark:bg-orange-900/30">
-                    <FileText className="w-5 h-5 text-orange-600 dark:text-orange-400" />
-                  </div>
-                  <div>
-                    <div className="font-medium text-gray-900 dark:text-white">메모 위젯</div>
-                    <div className="text-sm text-gray-500 dark:text-gray-400">
-                      빠른 메모 작성 및 관리
-                    </div>
-                  </div>
-                </div>
-              </Card>
-
-              <Card 
-                className="p-4 cursor-pointer macos-widget animate-macos-slide-in"
-                onClick={() => openAddWidgetModal('link')}
-              >
-                <div className="flex items-center space-x-3">
-                  <div className="p-2 rounded-lg bg-blue-100 dark:bg-blue-900/30">
-                    <LinkIcon className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-                  </div>
-                  <div>
-                    <div className="font-medium text-gray-900 dark:text-white">링크 위젯</div>
-                    <div className="text-sm text-gray-500 dark:text-gray-400">
-                      자주 사용하는 웹사이트 바로가기
-                    </div>
-                  </div>
-                </div>
-              </Card>
-
-              <Card 
-                className="p-4 cursor-pointer macos-widget animate-macos-slide-in"
-                onClick={() => openAddWidgetModal('checklist')}
-              >
-                <div className="flex items-center space-x-3">
-                  <div className="p-2 rounded-lg bg-green-100 dark:bg-green-900/30">
-                    <List className="w-5 h-5 text-green-600 dark:text-green-400" />
-                  </div>
-                  <div>
-                    <div className="font-medium text-gray-900 dark:text-white">체크리스트 위젯</div>
-                    <div className="text-sm text-gray-500 dark:text-gray-400">
-                      할 일 목록 관리
-                    </div>
-                  </div>
-                </div>
-              </Card>
-
-              <Card 
-                className="p-4 cursor-pointer macos-widget animate-macos-slide-in"
-                onClick={() => openAddWidgetModal('clock')}
-              >
-                <div className="flex items-center space-x-3">
-                  <div className="p-2 rounded-lg bg-purple-100 dark:bg-purple-900/30">
-                    <Clock className="w-5 h-5 text-purple-600 dark:text-purple-400" />
-                  </div>
-                  <div>
-                    <div className="font-medium text-gray-900 dark:text-white">시계 위젯</div>
-                    <div className="text-sm text-gray-500 dark:text-gray-400">
-                      현재 시간 표시
-                    </div>
-                  </div>
-                </div>
-              </Card>
-
-              <Card 
-                className="p-4 cursor-pointer macos-widget animate-macos-slide-in"
-                onClick={() => openAddWidgetModal('calendar')}
-              >
-                <div className="flex items-center space-x-3">
-                  <div className="p-2 rounded-lg bg-indigo-100 dark:bg-indigo-900/30">
-                    <CalendarIcon className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
-                  </div>
-                  <div>
-                    <div className="font-medium text-gray-900 dark:text-white">캘린더 위젯</div>
-                    <div className="text-sm text-gray-500 dark:text-gray-400">
-                      월별 캘린더 보기
-                    </div>
-                  </div>
-                </div>
-              </Card>
-            </div>
-
-            <div className="h-6" />
-            <Divider />
-            <div className="h-6" />
-
-            <h3 className="text-md font-semibold mb-4 text-gray-900 dark:text-white">대시보드 설정</h3>
-            <div className="space-y-3">
-              <Button 
-                variant="outline" 
-                className="w-full justify-start"
-                onClick={() => setIsSettingsModalOpen(true)}
-              >
-                <Palette className="w-4 h-4 mr-2" />
-                배경 및 테마 변경
-              </Button>
-              <Button 
-                variant="outline" 
-                className="w-full justify-start"
-                onClick={handleLayoutReset}
-              >
-                <Layout className="w-4 h-4 mr-2" />
-                레이아웃 초기화
-              </Button>
-            </div>
-          </div>
-        </div>
+        {/* 사이드바 */}
+        <Sidebar
+          isSidebarOpen={isSidebarOpen}
+          onOpenAddWidgetModal={openAddWidgetModal}
+          onOpenSettingsModal={() => setIsSettingsModalOpen(true)}
+          onLayoutReset={handleLayoutReset}
+        />
 
         {/* 메인 콘텐츠 */}
         <div className={`flex-1 transition-all duration-300 overflow-hidden ${
@@ -1787,7 +592,6 @@ export default function DashboardPage() {
                   <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4 auto-rows-fr min-h-[calc(100vh-8rem)]">
                     {widgets
                       ?.sort((a, b) => {
-                        // position_y(행)로 먼저 정렬, 같으면 position_x(열)로 정렬
                         if (a.position_y !== b.position_y) {
                           return a.position_y - b.position_y
                         }
@@ -1806,7 +610,14 @@ export default function DashboardPage() {
                             isEditMode={isEditMode}
                             onResize={handleWidgetResize}
                           >
-                            {renderWidget(widget)}
+                            <WidgetRenderer
+                              widget={widget}
+                              isEditMode={isEditMode}
+                              onRemove={removeWidget}
+                              onSettingsChange={updateWidgetSettings}
+                              onChecklistItemChange={updateChecklistItem}
+                              currentTime={currentTime}
+                            />
                           </ResizableWidget>
                         </SortableWidget>
                       )) || []}
@@ -1816,7 +627,12 @@ export default function DashboardPage() {
                 <DragOverlay>
                   {activeId ? (
                     <div className="opacity-0">
-                      {renderWidget(widgets.find(w => w.id === activeId)!)}
+                      <WidgetRenderer
+                        widget={widgets.find(w => w.id === activeId)!}
+                        isEditMode={isEditMode}
+                        onRemove={removeWidget}
+                        currentTime={currentTime}
+                      />
                     </div>
                   ) : null}
                 </DragOverlay>
@@ -1844,8 +660,34 @@ export default function DashboardPage() {
       </div>
 
       {/* 모달들 */}
-      {renderAddWidgetModal()}
-      {renderSettingsModal()}
+      <AddWidgetModal
+        isOpen={isAddWidgetModalOpen}
+        onClose={() => setIsAddWidgetModalOpen(false)}
+        selectedWidgetType={selectedWidgetType}
+        newWidgetData={newWidgetData}
+        setNewWidgetData={setNewWidgetData}
+        onAddWidget={addWidget}
+        faviconLoading={faviconLoading}
+        setFaviconLoading={setFaviconLoading}
+        faviconError={faviconError}
+        setFaviconError={setFaviconError}
+      />
+      
+      <SettingsModal
+        isOpen={isSettingsModalOpen}
+        onClose={() => setIsSettingsModalOpen(false)}
+        dashboard={dashboard}
+        backgroundOptions={backgroundOptions}
+        onUpdateBackground={updateDashboardBackground}
+        onImageUpload={handleImageUpload}
+        onImageRemove={handleImageRemove}
+        isGuestMode={isGuestMode}
+        onShowLoginModal={handleShowLoginModal}
+        onImportSuccess={() => {
+          loadDashboard()
+          setIsSettingsModalOpen(false)
+        }}
+      />
       
       {/* 로그인 모달 */}
       <LoginModal
